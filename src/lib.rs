@@ -40,6 +40,13 @@ impl Parser {
     pub fn new() -> Self {
         Self::default()
     }
+    pub fn with_support(table: CompatibilityTable) -> Self {
+        Self {
+            options: table,
+            buffer: Vec::new(),
+            events: Vec::new(),
+        }
+    }
     pub fn receive(&mut self, data: &[u8]) {
         self.buffer = bytes::concat(&self.buffer, data);
         self.process();
@@ -80,6 +87,46 @@ impl Parser {
     }
     fn push_event(&mut self, event: TelnetEvent) {
         self.events.push(event);
+    }
+    pub fn negotiate(&mut self, command: u8, option: u8) {
+        self.send(&[255, command, option]);
+    }
+    pub fn _will(&mut self, option: u8) {
+        let mut opt = self.options.get_option(option);
+        if opt.local && !opt.local_state {
+            opt.local_state = true;
+            self.negotiate(251, option);
+            self.options.set_option(option, opt);
+        }
+    }
+    pub fn _wont(&mut self, option: u8) {
+        let mut opt = self.options.get_option(option);
+        if opt.local && opt.local_state {
+            opt.local_state = false;
+            self.negotiate(252, option);
+            self.options.set_option(option, opt);
+        }
+    }
+    pub fn _do(&mut self, option: u8) {
+        let opt = self.options.get_option(option);
+        if opt.remote && !opt.remote_state {
+            self.negotiate(253, option);
+        }
+    }
+    pub fn _dont(&mut self, option: u8) {
+        let opt = self.options.get_option(option);
+        if opt.remote_state {
+            self.negotiate(254, option);
+        }
+    }
+    pub fn subnegotiation(&mut self, option: u8, data: Vec<u8>) {
+        self.send(&bytes::concat(
+            &[255, 250, option],
+            &bytes::concat(&Parser::escape_iac(data), &[255, 240]),
+        ));
+    }
+    pub fn subnegotiation_text(&mut self, option: u8, text: &str) {
+        self.subnegotiation(option, String::from(text).into_bytes());
     }
     pub fn send(&mut self, data: &[u8]) {
         self.push_event(TelnetEvent::Send(DataEvent {
@@ -135,8 +182,8 @@ impl Parser {
                                     // WILL
                                     if opt.remote && !opt.remote_state {
                                         opt.remote_state = true;
-                                        self.options.set_option(buffer[2], opt);
                                         self.send(&[255, 253, buffer[2]]);
+                                        self.options.set_option(buffer[2], opt);
                                     } else if !opt.remote {
                                         self.send(&[255, 254, buffer[2]]);
                                     }
@@ -153,10 +200,11 @@ impl Parser {
                                     // DO
                                     if opt.local && !opt.local_state {
                                         opt.local_state = true;
-                                        self.options.set_option(buffer[2], opt);
+                                        opt.remote_state = true;
                                         self.send(&[255, 251, buffer[2]]);
+                                        self.options.set_option(buffer[2], opt);
                                     } else if !opt.local {
-                                        self.send(&[255, 254, buffer[2]]);
+                                        self.send(&[255, 252, buffer[2]]);
                                     }
                                 }
                                 254 => {
@@ -167,11 +215,12 @@ impl Parser {
                                         self.send(&[255, 252, buffer[2]]);
                                     }
                                 }
-                                _ => self.events.push(TelnetEvent::Negotiation(NegotiationEvent {
-                                    command: buffer[1],
-                                    option: buffer[2],
-                                })),
+                                _ => (),
                             }
+                            self.events.push(TelnetEvent::Negotiation(NegotiationEvent {
+                                command: buffer[1],
+                                option: buffer[2],
+                            }));
                         }
                     }
                     _ => {
@@ -180,7 +229,7 @@ impl Parser {
                         if buffer[len - 2] == 255 && buffer[len - 1] == 240 {
                             // Valid ending
                             let opt = self.options.get_option(buffer[2]);
-                            if opt.local {
+                            if opt.local && opt.local_state {
                                 self.push_event(TelnetEvent::Subnegotiation(SubnegotiationEvent {
                                     option: buffer[2],
                                     buffer: Vec::from(&buffer[3..len - 2]),

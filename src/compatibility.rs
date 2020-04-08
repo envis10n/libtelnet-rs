@@ -59,6 +59,32 @@ impl CompatibilityTable {
   pub fn new() -> Self {
     Self::default()
   }
+  pub fn from_bytes(values: [u8; 256]) -> Self {
+    Self { options: values }
+  }
+  pub fn from_options(values: &[(u8, u8)]) -> Self {
+    let mut options: [u8; 256] = [0; 256];
+    for (opt, val) in values {
+      options[*opt as usize] = *val;
+    }
+    Self { options }
+  }
+  pub fn support_local(&mut self, option: u8) {
+    let mut opt = CompatibilityEntry::from(self.options[option as usize]);
+    opt.local = true;
+    self.set_option(option, opt);
+  }
+  pub fn support_remote(&mut self, option: u8) {
+    let mut opt = CompatibilityEntry::from(self.options[option as usize]);
+    opt.remote = true;
+    self.set_option(option, opt);
+  }
+  pub fn support(&mut self, option: u8) {
+    let mut opt = CompatibilityEntry::from(self.options[option as usize]);
+    opt.local = true;
+    opt.remote = true;
+    self.set_option(option, opt);
+  }
   pub fn get_option(&self, option: u8) -> CompatibilityEntry {
     CompatibilityEntry::from(self.options[option as usize])
   }

@@ -2,8 +2,9 @@ use super::*;
 #[test]
 fn test_parser() {
   let mut instance: Parser = Parser::new();
+  instance.options.support_local(201);
+  instance._will(201);
   instance.receive(&bytes::concat(b"Hello, rust!", &[255, 249]));
-  instance.send_text("Derp Derp Derp!");
   instance.receive(&[255, 253, 201]);
   instance.receive(&[255, 250, 201]);
   instance.receive(b"Core.Hello {}");
@@ -13,7 +14,11 @@ fn test_parser() {
       TelnetEvent::IAC(command) => println!("IAC: {:?}", command),
       TelnetEvent::Negotiation(nev) => println!("Negotiation: {} {}", nev.command, nev.option),
       TelnetEvent::Subnegotiation(sev) => {
-        println!("Subnegotiation: {} {:?}", sev.option, sev.buffer)
+        println!(
+          "Subnegotiation: {} {:?}",
+          sev.option,
+          String::from_utf8(sev.buffer).expect("Error parsing subnegotiation data to UTF8 string")
+        );
       }
       TelnetEvent::Data(dev) => println!("Data: {:?}", dev.buffer),
       TelnetEvent::Send(sdev) => println!("Send: {:?}", sdev.buffer),
