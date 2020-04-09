@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["concat","Concatenate 2 `&[u8]` slices into a `Vec<u8>`"]]});

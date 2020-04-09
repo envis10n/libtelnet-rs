@@ -6,7 +6,7 @@
     {
       "label": "docs",
       "type": "shell",
-      "command": "rustdoc src/lib.rs --crate-name libtelnet-rs -o docs",
+      "command": "rustdoc src/lib.rs --crate-name libtelnet_rs -o docs",
       "problemMatcher": []
     }
   ]
