@@ -20,10 +20,10 @@ impl Iterator for Parser {
     type Item = TelnetEvent;
     /// Get the next TelnetEvent stored in the Parser.
     fn next(&mut self) -> Option<TelnetEvent> {
-        let item = &self.get_event();
-        match item {
-            Some(ev) => Some((*ev).clone()),
-            None => None,
+        if !self.events.is_empty() {
+            Some(self.events.remove(0))
+        } else {
+            None
         }
     }
 }
@@ -88,25 +88,6 @@ impl Parser {
             t.push(*val);
         }
         t
-    }
-    /// Internal method for getting the next event and removing it from the events list.
-    fn get_event(&mut self) -> Option<TelnetEvent> {
-        let item = self.events.get(0);
-        let res: Option<TelnetEvent>;
-        match item {
-            Some(ev) => res = Some(ev.clone()),
-            None => res = None,
-        };
-        if self.events.len() > 1 {
-            self.events = Vec::from(&self.events[1..]);
-        } else {
-            self.events = Vec::new();
-        }
-        res
-    }
-    /// Alias for self.events.push
-    fn push_event(&mut self, event: TelnetEvent) {
-        self.events.push(event);
     }
     /// Negotiate an option.
     ///
@@ -222,7 +203,7 @@ impl Parser {
     ///
     /// The buffer supplied here will NOT be escaped. It is recommended to avoid using this method in favor of the more specialized methods.
     pub fn send(&mut self, data: &[u8]) {
-        self.push_event(TelnetEvent::Send(DataEvent {
+        self.events.push(TelnetEvent::Send(DataEvent {
             size: data.len(),
             buffer: Vec::from(data),
         }));
@@ -328,10 +309,12 @@ impl Parser {
                             // Valid ending
                             let opt = self.options.get_option(buffer[2]);
                             if opt.local && opt.local_state {
-                                self.push_event(TelnetEvent::Subnegotiation(SubnegotiationEvent {
-                                    option: buffer[2],
-                                    buffer: Vec::from(&buffer[3..len - 2]),
-                                }));
+                                self.events.push(TelnetEvent::Subnegotiation(
+                                    SubnegotiationEvent {
+                                        option: buffer[2],
+                                        buffer: Vec::from(&buffer[3..len - 2]),
+                                    },
+                                ));
                             }
                         } else {
                             // Missing the rest
