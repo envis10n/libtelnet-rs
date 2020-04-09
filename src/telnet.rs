@@ -1,24 +1,19 @@
+/// Module containing constants for Telnet Command codes.
 pub mod op_command {
   pub const IAC: u8 = 255;
-  /** Confirm  */
   pub const WILL: u8 = 251;
-  /** Tell the other side that we refuse to use an option. */
   pub const WONT: u8 = 252;
-  /** Request that the other side begin using an option. */
   pub const DO: u8 = 253;
-  /**  */
   pub const DONT: u8 = 254;
   pub const NOP: u8 = 241;
-  /** Subnegotiation used for sending out-of-band data. */
   pub const SB: u8 = 250;
-  /** Marks the end of a subnegotiation sequence. */
   pub const SE: u8 = 240;
   pub const IS: u8 = 0;
   pub const SEND: u8 = 1;
-  /** Go Ahead */
   pub const GA: u8 = 249;
 }
 
+/// Module containing constants for Telnet Option codes.
 pub mod op_option {
   pub const BINARY: u8 = 0;
   pub const ECHO: u8 = 1;

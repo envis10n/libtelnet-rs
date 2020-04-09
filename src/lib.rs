@@ -9,6 +9,7 @@ mod tests;
 use compatibility::*;
 use events::*;
 
+/// A telnet parser that handles the main parts of the protocol.
 pub struct Parser {
     options: CompatibilityTable,
     buffer: Vec<u8>,
@@ -17,6 +18,7 @@ pub struct Parser {
 
 impl Iterator for Parser {
     type Item = TelnetEvent;
+    /// Get the next TelnetEvent stored in the Parser.
     fn next(&mut self) -> Option<TelnetEvent> {
         let item = &self.get_event();
         match item {
@@ -37,9 +39,11 @@ impl Default for Parser {
 }
 
 impl Parser {
+    /// Create a default, empty Parser.
     pub fn new() -> Self {
         Self::default()
     }
+    /// Create a parser, directly supplying a CompatibilityTable.
     pub fn with_support(table: CompatibilityTable) -> Self {
         Self {
             options: table,
@@ -47,10 +51,20 @@ impl Parser {
             events: Vec::new(),
         }
     }
+    /// Receive bytes into the internal buffer.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - The bytes to be received. This should be sourced from the remote side of a connection.
+    ///
     pub fn receive(&mut self, data: &[u8]) {
         self.buffer = bytes::concat(&self.buffer, data);
         self.process();
     }
+    /// Escape IAC bytes in data that is to be transmitted and treated as a non-IAC sequence.
+    ///
+    /// # Example
+    /// `[255, 1, 6, 2]` -> `[255, 255, 1, 6, 2]`
     pub fn escape_iac(data: Vec<u8>) -> Vec<u8> {
         let mut t: Vec<u8> = Vec::new();
         for val in data {
@@ -61,6 +75,10 @@ impl Parser {
         }
         t
     }
+    /// Reverse escaped IAC bytes for non-IAC sequences and data.
+    ///
+    /// # Example
+    /// `[255, 255, 1, 6, 2]` -> `[255, 1, 6, 2]`
     pub fn unescape_iac(data: Vec<u8>) -> Vec<u8> {
         let mut t: Vec<u8> = Vec::new();
         for (index, val) in data.iter().enumerate() {
@@ -71,6 +89,7 @@ impl Parser {
         }
         t
     }
+    /// Internal method for getting the next event and removing it from the events list.
     fn get_event(&mut self) -> Option<TelnetEvent> {
         let item = self.events.get(0);
         let res: Option<TelnetEvent>;
@@ -85,12 +104,35 @@ impl Parser {
         }
         res
     }
+    /// Alias for self.events.push
     fn push_event(&mut self, event: TelnetEvent) {
         self.events.push(event);
     }
+    /// Negotiate an option.
+    ///
+    /// # Arguments
+    ///
+    /// `command` - A `u8` representing the telnet command code to be negotiated with. Example: WILL (251), WONT (252), DO (253), DONT (254)
+    ///
+    /// `option` - A `u8` representing the telnet option code that is being negotiated.
+    ///
+    /// # Usage
+    ///
+    /// This and other methods meant for sending data to the remote end will generate a `TelnetEvents::Send(DataEvent)` event.
+    ///
+    /// These Send events contain a buffer that should be sent directly to the remote end, as it will have already been encoded properly.
     pub fn negotiate(&mut self, command: u8, option: u8) {
         self.send(&[255, command, option]);
     }
+    /// Indicate to the other side that you are able and wanting to utilize an option.
+    ///
+    /// # Arguments
+    ///
+    /// `option` - A `u8` representing the telnet option code that you want to enable locally.
+    ///
+    /// # Notes
+    ///
+    /// This method will do nothing if the option is not "supported" locally via the `CompatibilityTable`.
     pub fn _will(&mut self, option: u8) {
         let mut opt = self.options.get_option(option);
         if opt.local && !opt.local_state {
@@ -99,47 +141,103 @@ impl Parser {
             self.options.set_option(option, opt);
         }
     }
+    /// Indicate to the other side that you are not wanting to utilize an option.
+    ///
+    /// # Arguments
+    ///
+    /// `option` - A `u8` representing the telnet option code that you want to disable locally.
+    ///
     pub fn _wont(&mut self, option: u8) {
         let mut opt = self.options.get_option(option);
-        if opt.local && opt.local_state {
+        if opt.local_state {
             opt.local_state = false;
             self.negotiate(252, option);
             self.options.set_option(option, opt);
         }
     }
+    /// Indicate to the other side that you would like them to utilize an option.
+    ///
+    /// # Arguments
+    ///
+    /// `option` - A `u8` representing the telnet option code that you want to enable remotely.
+    ///
+    /// # Notes
+    ///
+    /// This method will do nothing if the option is not "supported" remotely via the `CompatibilityTable`.
     pub fn _do(&mut self, option: u8) {
         let opt = self.options.get_option(option);
         if opt.remote && !opt.remote_state {
             self.negotiate(253, option);
         }
     }
+    /// Indicate to the other side that you would like them to stop utilizing an option.
+    ///
+    /// # Arguments
+    ///
+    /// `option` - A `u8` representing the telnet option code that you want to disable remotely.
+    ///
     pub fn _dont(&mut self, option: u8) {
         let opt = self.options.get_option(option);
         if opt.remote_state {
             self.negotiate(254, option);
         }
     }
+    /// Send a subnegotiation for a locally supported option.
+    ///
+    /// # Arguments
+    ///
+    /// `option` - A `u8` representing the telnet option code for the negotiation.
+    ///
+    /// `data` - A `Vec<u8>` containing the data to be sent in the subnegotiation. This data will have all IAC (255) byte values escaped.
+    ///
+    /// # Notes
+    ///
+    /// This method will do nothing if the option is not "supported" locally via the `CompatibilityTable`.
     pub fn subnegotiation(&mut self, option: u8, data: Vec<u8>) {
-        self.send(&bytes::concat(
-            &[255, 250, option],
-            &bytes::concat(&Parser::escape_iac(data), &[255, 240]),
-        ));
+        let opt = self.options.get_option(option);
+        if opt.local && opt.local_state {
+            self.send(&bytes::concat(
+                &[255, 250, option],
+                &bytes::concat(&Parser::escape_iac(data), &[255, 240]),
+            ));
+        }
     }
+    /// Send a subnegotiation for a locally supported option, using a string instead of raw byte values.
+    ///
+    /// # Arguments
+    ///
+    /// `option` - A `u8` representing the telnet option code for the negotiation.
+    ///
+    /// `text` - A `&str` representing the text to be sent in the subnegotation. This data will have all IAC (255) byte values escaped.
+    ///
+    /// # Notes
+    ///
+    /// This method will do nothing if the option is not "supported" locally via the `CompatibilityTable`.
     pub fn subnegotiation_text(&mut self, option: u8, text: &str) {
         self.subnegotiation(option, String::from(text).into_bytes());
     }
+    /// Directly send a buffer to the remote end.
+    ///
+    /// # Notes
+    ///
+    /// The buffer supplied here will NOT be escaped. It is recommended to avoid using this method in favor of the more specialized methods.
     pub fn send(&mut self, data: &[u8]) {
         self.push_event(TelnetEvent::Send(DataEvent {
             size: data.len(),
             buffer: Vec::from(data),
         }));
     }
+    /// Directly send a string, with appended `\r\n`, to the remote end, along with an `IAC (255) GOAHEAD (249)` sequence.
+    ///
+    /// # Notes
+    /// The string will have IAC (255) bytes escaped before being sent.
     pub fn send_text(&mut self, text: &str) {
         self.send(&bytes::concat(
             &Parser::escape_iac(format!("{}\r\n", text).into_bytes()),
             &[255, 249],
         ));
     }
+    /// The internal parser method that takes the current buffer and generates the corresponding events.
     fn process(&mut self) {
         let mut t: Vec<Vec<u8>> = Vec::new();
         let iter = self.buffer.iter().enumerate();
