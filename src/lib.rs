@@ -11,7 +11,7 @@ use events::*;
 
 /// A telnet parser that handles the main parts of the protocol.
 pub struct Parser {
-    options: CompatibilityTable,
+    pub options: CompatibilityTable,
     buffer: Vec<u8>,
     events: Vec<TelnetEvent>,
 }

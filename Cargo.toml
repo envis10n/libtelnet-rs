@@ -1,8 +1,15 @@
 [package]
 name = "libtelnet-rs"
+description = "libtelnet-inspired telnet parser for rust."
 version = "0.1.0"
 authors = ["envis10n <envis10n@protonmail.com>"]
 edition = "2018"
+readme = "README.md"
+homepage = "https://github.com/envis10n/libtelnet-rs"
+repository = "https://github.com/envis10n/libtelnet-rs"
+license = "MIT"
+keywords = ["telnet", "libtelnet", "mud"]
+categories = ["network-programming"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -1,3 +1,3 @@
 # libtelnet-rs
 
-libtelnet, but it's rust.
+libtelnet-inspired telnet parser for rust.
