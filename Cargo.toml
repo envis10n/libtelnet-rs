@@ -11,6 +11,7 @@ documentation = "https://envis10n.github.io/libtelnet-rs/libtelnet-rs/"
 license = "MIT"
 keywords = ["telnet", "libtelnet", "mud"]
 categories = ["network-programming"]
+exclude = ["docs/**"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
