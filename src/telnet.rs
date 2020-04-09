@@ -60,4 +60,5 @@ pub mod op_option {
   pub const EXOPL: u8 = 255;
   pub const MCCP2: u8 = 86;
   pub const MCCP3: u8 = 87;
+  pub const GMCP: u8 = 201;
 }

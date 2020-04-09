@@ -66,12 +66,13 @@ impl Parser {
     /// # Example
     /// `[255, 1, 6, 2]` -> `[255, 255, 1, 6, 2]`
     pub fn escape_iac(data: Vec<u8>) -> Vec<u8> {
-        let mut t: Vec<u8> = Vec::new();
-        for val in data {
-            if val == 255 {
-                t.push(val);
+        let mut t = data.clone();
+        let mut c: usize = 0;
+        for (i, byte) in data.iter().enumerate() {
+            if *byte == 255 {
+                t.insert(i + c, 255);
+                c += 1;
             }
-            t.push(val);
         }
         t
     }
@@ -80,12 +81,13 @@ impl Parser {
     /// # Example
     /// `[255, 255, 1, 6, 2]` -> `[255, 1, 6, 2]`
     pub fn unescape_iac(data: Vec<u8>) -> Vec<u8> {
-        let mut t: Vec<u8> = Vec::new();
+        let mut t = data.clone();
+        let mut c: usize = 0;
         for (index, val) in data.iter().enumerate() {
             if *val == 255 && data[index + 1] == 255 {
-                continue;
+                t.remove(index - c);
+                c += 1;
             }
-            t.push(*val);
         }
         t
     }

@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["CompatibilityEntry",""],["CompatibilityTable","A table of options that are supported locally or remotely, and their current state."]]});
