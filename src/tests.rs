@@ -1,9 +1,44 @@
 use super::*;
 
+struct TelEvent;
+
+impl TelnetEvents for TelEvent {
+  fn on_iac(&self, command: u8) {
+    println!("IAC: {}", command);
+  }
+  fn on_data(&self, size: usize, buffer: Vec<u8>) {
+    println!(
+      "Data: {} byte(s) | {}",
+      size,
+      String::from_utf8(buffer).unwrap()
+    );
+  }
+  fn on_send(&self, size: usize, buffer: Vec<u8>) {
+    println!("Send: {} byte(s) | {:?}", size, buffer);
+  }
+  fn on_negotiation(&self, command: u8, option: u8) {
+    println!("Negotiate: {} {}", command, option);
+  }
+  fn on_subnegotiation(&self, option: u8, size: usize, buffer: Vec<u8>) {
+    match String::from_utf8(buffer.clone()) {
+      Ok(text) => {
+        println!("Subnegotiation: {} - {} byte(s) | {}", option, size, text);
+      }
+      Err(_) => {
+        println!(
+          "Subnegotiation: {} - {} byte(s) | {:?}",
+          option, size, buffer
+        );
+      }
+    }
+  }
+}
+
 /// Test the parser and its general functionality.
 #[test]
 fn test_parser() {
   let mut instance: Parser = Parser::new();
+  instance.add_hooks(TelEvent);
   instance.options.support_local(201);
   instance._will(201);
   instance.receive(&bytes::concat(b"Hello, rust!", &[255, 249]));
@@ -11,21 +46,6 @@ fn test_parser() {
   instance.receive(&[255, 250, 201]);
   instance.receive(b"Core.Hello {}");
   instance.receive(&[255, 240]);
-  for ev in instance {
-    match ev {
-      TelnetEvent::IAC(command) => println!("IAC: {:?}", command),
-      TelnetEvent::Negotiation(nev) => println!("Negotiation: {} {}", nev.command, nev.option),
-      TelnetEvent::Subnegotiation(sev) => {
-        println!(
-          "Subnegotiation: {} {:?}",
-          sev.option,
-          String::from_utf8(sev.buffer).expect("Error parsing subnegotiation data to UTF8 string")
-        );
-      }
-      TelnetEvent::Data(dev) => println!("Data: {:?}", dev.buffer),
-      TelnetEvent::Send(sdev) => println!("Send: {:?}", sdev.buffer),
-    }
-  }
 }
 
 /// Test escaping IAC bytes in a buffer.

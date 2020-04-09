@@ -1,31 +1,66 @@
 pub mod bytes;
 pub mod compatibility;
-pub mod events;
 pub mod telnet;
 
 #[cfg(test)]
 mod tests;
 
 use compatibility::*;
-use events::*;
+
+/// A trait for event handlers of Telnet events.
+///
+/// # Example
+///
+/// ```
+/// struct TelEvent;
+///
+/// impl TelnetEvents for TelEvent {
+///   fn on_iac(&self, command: u8) {
+///     println!("IAC: {}", command);
+///   }
+///   fn on_data(&self, size: usize, buffer: Vec<u8>) {
+///     println!(
+///       "Data: {} byte(s) | {}",
+///       size,
+///       String::from_utf8(buffer).unwrap()
+///     );
+///   }
+///   fn on_send(&self, size: usize, buffer: Vec<u8>) {
+///     println!("Send: {} byte(s) | {:?}", size, buffer);
+///   }
+///   fn on_negotiation(&self, command: u8, option: u8) {
+///     println!("Negotiate: {} {}", command, option);
+///   }
+///   fn on_subnegotiation(&self, option: u8, size: usize, buffer: Vec<u8>) {
+///     match String::from_utf8(buffer.clone()) {
+///       Ok(text) => {
+///         println!("Subnegotiation: {} - {} byte(s) | {}", option, size, text);
+///       }
+///       Err(_) => {
+///         println!(
+///           "Subnegotiation: {} - {} byte(s) | {:?}",
+///           option, size, buffer
+///         );
+///       }
+///     }
+///   }
+/// }
+/// ```
+///
+#[allow(unused_variables)]
+pub trait TelnetEvents {
+    fn on_iac(&self, command: u8) {}
+    fn on_negotiation(&self, command: u8, option: u8) {}
+    fn on_subnegotiation(&self, option: u8, size: usize, buffer: Vec<u8>) {}
+    fn on_data(&self, size: usize, buffer: Vec<u8>) {}
+    fn on_send(&self, size: usize, buffer: Vec<u8>) {}
+}
 
 /// A telnet parser that handles the main parts of the protocol.
 pub struct Parser {
     pub options: CompatibilityTable,
     buffer: Vec<u8>,
-    events: Vec<TelnetEvent>,
-}
-
-impl Iterator for Parser {
-    type Item = TelnetEvent;
-    /// Get the next TelnetEvent stored in the Parser.
-    fn next(&mut self) -> Option<TelnetEvent> {
-        if !self.events.is_empty() {
-            Some(self.events.remove(0))
-        } else {
-            None
-        }
-    }
+    hooks: Vec<Box<dyn TelnetEvents>>,
 }
 
 impl Default for Parser {
@@ -33,7 +68,7 @@ impl Default for Parser {
         Parser {
             options: CompatibilityTable::new(),
             buffer: Vec::new(),
-            events: Vec::new(),
+            hooks: Vec::new(),
         }
     }
 }
@@ -48,8 +83,17 @@ impl Parser {
         Self {
             options: table,
             buffer: Vec::new(),
-            events: Vec::new(),
+            hooks: Vec::new(),
         }
+    }
+    /// Add a struct that implements the event hooks called when processing.
+    ///
+    /// # Arguments
+    ///
+    /// `hook` - A struct implementing the TelnetEvents trait.
+    ///
+    pub fn add_hooks<E: TelnetEvents + 'static>(&mut self, hook: E) {
+        self.hooks.push(Box::new(hook));
     }
     /// Receive bytes into the internal buffer.
     ///
@@ -205,10 +249,9 @@ impl Parser {
     ///
     /// The buffer supplied here will NOT be escaped. It is recommended to avoid using this method in favor of the more specialized methods.
     pub fn send(&mut self, data: &[u8]) {
-        self.events.push(TelnetEvent::Send(DataEvent {
-            size: data.len(),
-            buffer: Vec::from(data),
-        }));
+        for hook in &self.hooks {
+            hook.on_send(data.len(), Vec::from(data));
+        }
     }
     /// Directly send a string, with appended `\r\n`, to the remote end, along with an `IAC (255) GOAHEAD (249)` sequence.
     ///
@@ -248,7 +291,9 @@ impl Parser {
                     2 => {
                         if buffer[1] != 240 {
                             // IAC command
-                            self.events.push(TelnetEvent::IAC(buffer[1]));
+                            for hook in &self.hooks {
+                                hook.on_iac(buffer[1]);
+                            }
                         }
                     }
                     3 => {
@@ -298,10 +343,9 @@ impl Parser {
                                 }
                                 _ => (),
                             }
-                            self.events.push(TelnetEvent::Negotiation(NegotiationEvent {
-                                command: buffer[1],
-                                option: buffer[2],
-                            }));
+                            for hook in &self.hooks {
+                                hook.on_negotiation(buffer[1], buffer[2]);
+                            }
                         }
                     }
                     _ => {
@@ -311,12 +355,14 @@ impl Parser {
                             // Valid ending
                             let opt = self.options.get_option(buffer[2]);
                             if opt.local && opt.local_state {
-                                self.events.push(TelnetEvent::Subnegotiation(
-                                    SubnegotiationEvent {
-                                        option: buffer[2],
-                                        buffer: Vec::from(&buffer[3..len - 2]),
-                                    },
-                                ));
+                                let dbuffer = Vec::from(&buffer[3..len - 2]);
+                                for hook in &self.hooks {
+                                    hook.on_subnegotiation(
+                                        buffer[2],
+                                        dbuffer.len(),
+                                        dbuffer.clone(),
+                                    );
+                                }
                             }
                         } else {
                             // Missing the rest
@@ -326,10 +372,9 @@ impl Parser {
                 }
             } else {
                 // Not an iac sequence, it's data!
-                self.events.push(TelnetEvent::Data(DataEvent {
-                    size: buffer.len(),
-                    buffer: buffer.clone(),
-                }));
+                for hook in &self.hooks {
+                    hook.on_data(buffer.len(), buffer.clone())
+                }
             }
         }
     }
