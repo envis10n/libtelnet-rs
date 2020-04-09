@@ -49,11 +49,11 @@ use compatibility::*;
 ///
 #[allow(unused_variables)]
 pub trait TelnetEvents {
-    fn on_iac(&self, command: u8) {}
-    fn on_negotiation(&self, command: u8, option: u8) {}
-    fn on_subnegotiation(&self, option: u8, size: usize, buffer: Vec<u8>) {}
-    fn on_data(&self, size: usize, buffer: Vec<u8>) {}
-    fn on_send(&self, size: usize, buffer: Vec<u8>) {}
+    fn on_iac(&mut self, command: u8) {}
+    fn on_negotiation(&mut self, command: u8, option: u8) {}
+    fn on_subnegotiation(&mut self, option: u8, size: usize, buffer: Vec<u8>) {}
+    fn on_data(&mut self, size: usize, buffer: Vec<u8>) {}
+    fn on_send(&mut self, size: usize, buffer: Vec<u8>) {}
 }
 
 /// A telnet parser that handles the main parts of the protocol.
@@ -249,7 +249,7 @@ impl Parser {
     ///
     /// The buffer supplied here will NOT be escaped. It is recommended to avoid using this method in favor of the more specialized methods.
     pub fn send(&mut self, data: &[u8]) {
-        for hook in &self.hooks {
+        for hook in &mut self.hooks {
             hook.on_send(data.len(), Vec::from(data));
         }
     }
@@ -291,7 +291,7 @@ impl Parser {
                     2 => {
                         if buffer[1] != 240 {
                             // IAC command
-                            for hook in &self.hooks {
+                            for hook in &mut self.hooks {
                                 hook.on_iac(buffer[1]);
                             }
                         }
@@ -343,7 +343,7 @@ impl Parser {
                                 }
                                 _ => (),
                             }
-                            for hook in &self.hooks {
+                            for hook in &mut self.hooks {
                                 hook.on_negotiation(buffer[1], buffer[2]);
                             }
                         }
@@ -356,7 +356,7 @@ impl Parser {
                             let opt = self.options.get_option(buffer[2]);
                             if opt.local && opt.local_state {
                                 let dbuffer = Vec::from(&buffer[3..len - 2]);
-                                for hook in &self.hooks {
+                                for hook in &mut self.hooks {
                                     hook.on_subnegotiation(
                                         buffer[2],
                                         dbuffer.len(),
@@ -372,7 +372,7 @@ impl Parser {
                 }
             } else {
                 // Not an iac sequence, it's data!
-                for hook in &self.hooks {
+                for hook in &mut self.hooks {
                     hook.on_data(buffer.len(), buffer.clone())
                 }
             }

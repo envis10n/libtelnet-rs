@@ -3,23 +3,23 @@ use super::*;
 struct TelEvent;
 
 impl TelnetEvents for TelEvent {
-  fn on_iac(&self, command: u8) {
+  fn on_iac(&mut self, command: u8) {
     println!("IAC: {}", command);
   }
-  fn on_data(&self, size: usize, buffer: Vec<u8>) {
+  fn on_data(&mut self, size: usize, buffer: Vec<u8>) {
     println!(
       "Data: {} byte(s) | {}",
       size,
       String::from_utf8(buffer).unwrap()
     );
   }
-  fn on_send(&self, size: usize, buffer: Vec<u8>) {
+  fn on_send(&mut self, size: usize, buffer: Vec<u8>) {
     println!("Send: {} byte(s) | {:?}", size, buffer);
   }
-  fn on_negotiation(&self, command: u8, option: u8) {
+  fn on_negotiation(&mut self, command: u8, option: u8) {
     println!("Negotiate: {} {}", command, option);
   }
-  fn on_subnegotiation(&self, option: u8, size: usize, buffer: Vec<u8>) {
+  fn on_subnegotiation(&mut self, option: u8, size: usize, buffer: Vec<u8>) {
     match String::from_utf8(buffer.clone()) {
       Ok(text) => {
         println!("Subnegotiation: {} - {} byte(s) | {}", option, size, text);
