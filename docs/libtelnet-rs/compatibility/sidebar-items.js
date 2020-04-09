@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["CompatibilityEntry",""],["CompatibilityTable","A table of options that are supported locally or remotely, and their current state."]]});
+initSidebarItems({"struct":[["CompatibilityEntry","An expansion of a bitmask contained in `CompatibilityTable`."],["CompatibilityTable","A table of options that are supported locally or remotely, and their current state."]]});

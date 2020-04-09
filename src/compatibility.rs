@@ -1,8 +1,13 @@
+/// An expansion of a bitmask contained in `CompatibilityTable`.
 #[derive(Clone, Copy)]
 pub struct CompatibilityEntry {
+  /// Whether we support this option from us -> them.
   pub local: bool,
+  /// Whether we support this option from them -> us.
   pub remote: bool,
+  /// Whether this option is locally enabled.
   pub local_state: bool,
+  /// Whether this option is remotely enabled.
   pub remote_state: bool,
 }
 
@@ -15,6 +20,7 @@ impl CompatibilityEntry {
       remote_state,
     }
   }
+  /// Creates a u8 bitmask from this entry.
   pub fn into_u8(self) -> u8 {
     let mut res: u8 = 0;
     if self.local {
@@ -31,6 +37,7 @@ impl CompatibilityEntry {
     }
     res
   }
+  /// Expands a u8 bitmask into a CompatibilityEntry.
   pub fn from(value: u8) -> Self {
     Self {
       local: value & CompatibilityTable::ENABLED_LOCAL == CompatibilityTable::ENABLED_LOCAL,
