@@ -431,11 +431,11 @@
 <span class="doccomment">///</span>
 <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">TelnetEvents</span> {
-    <span class="kw">fn</span> <span class="ident">on_iac</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">command</span>: <span class="ident">u8</span>) {}
-    <span class="kw">fn</span> <span class="ident">on_negotiation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">command</span>: <span class="ident">u8</span>, <span class="ident">option</span>: <span class="ident">u8</span>) {}
-    <span class="kw">fn</span> <span class="ident">on_subnegotiation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>, <span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {}
-    <span class="kw">fn</span> <span class="ident">on_data</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {}
-    <span class="kw">fn</span> <span class="ident">on_send</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {}
+    <span class="kw">fn</span> <span class="ident">on_iac</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">command</span>: <span class="ident">u8</span>) {}
+    <span class="kw">fn</span> <span class="ident">on_negotiation</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">command</span>: <span class="ident">u8</span>, <span class="ident">option</span>: <span class="ident">u8</span>) {}
+    <span class="kw">fn</span> <span class="ident">on_subnegotiation</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>, <span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {}
+    <span class="kw">fn</span> <span class="ident">on_data</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {}
+    <span class="kw">fn</span> <span class="ident">on_send</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {}
 }
 
 <span class="doccomment">/// A telnet parser that handles the main parts of the protocol.</span>
@@ -631,7 +631,7 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// The buffer supplied here will NOT be escaped. It is recommended to avoid using this method in favor of the more specialized methods.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) {
-        <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">hooks</span> {
+        <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hooks</span> {
             <span class="ident">hook</span>.<span class="ident">on_send</span>(<span class="ident">data</span>.<span class="ident">len</span>(), <span class="ident">Vec</span>::<span class="ident">from</span>(<span class="ident">data</span>));
         }
     }
@@ -673,7 +673,7 @@
                     <span class="number">2</span> <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="kw">if</span> <span class="ident">buffer</span>[<span class="number">1</span>] <span class="op">!</span><span class="op">=</span> <span class="number">240</span> {
                             <span class="comment">// IAC command</span>
-                            <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">hooks</span> {
+                            <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hooks</span> {
                                 <span class="ident">hook</span>.<span class="ident">on_iac</span>(<span class="ident">buffer</span>[<span class="number">1</span>]);
                             }
                         }
@@ -725,7 +725,7 @@
                                 }
                                 <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> (),
                             }
-                            <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">hooks</span> {
+                            <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hooks</span> {
                                 <span class="ident">hook</span>.<span class="ident">on_negotiation</span>(<span class="ident">buffer</span>[<span class="number">1</span>], <span class="ident">buffer</span>[<span class="number">2</span>]);
                             }
                         }
@@ -738,7 +738,7 @@
                             <span class="kw">let</span> <span class="ident">opt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">get_option</span>(<span class="ident">buffer</span>[<span class="number">2</span>]);
                             <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">local</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">opt</span>.<span class="ident">local_state</span> {
                                 <span class="kw">let</span> <span class="ident">dbuffer</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">buffer</span>[<span class="number">3</span>..<span class="ident">len</span> <span class="op">-</span> <span class="number">2</span>]);
-                                <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">hooks</span> {
+                                <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hooks</span> {
                                     <span class="ident">hook</span>.<span class="ident">on_subnegotiation</span>(
                                         <span class="ident">buffer</span>[<span class="number">2</span>],
                                         <span class="ident">dbuffer</span>.<span class="ident">len</span>(),
@@ -754,7 +754,7 @@
                 }
             } <span class="kw">else</span> {
                 <span class="comment">// Not an iac sequence, it&#39;s data!</span>
-                <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">hooks</span> {
+                <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hooks</span> {
                     <span class="ident">hook</span>.<span class="ident">on_data</span>(<span class="ident">buffer</span>.<span class="ident">len</span>(), <span class="ident">buffer</span>.<span class="ident">clone</span>())
                 }
             }
