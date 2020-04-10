@@ -1,3 +1,4 @@
+![Rust](https://github.com/envis10n/libtelnet-rs/workflows/Rust/badge.svg?branch=master)
 # libtelnet-rs
 
 libtelnet-inspired telnet parser for rust.
