@@ -365,6 +365,19 @@
 <span id="365">365</span>
 <span id="366">366</span>
 <span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">compatibility</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">events</span>;
@@ -391,11 +404,27 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Parser</span> {
-    <span class="doccomment">/// Create a default, empty Parser.</span>
+    <span class="doccomment">/// Create a default, empty Parser with an internal buffer capacity of 128 bytes.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span>::<span class="ident">default</span>()
     }
+    <span class="doccomment">/// Create an empty parser, setting the initial internal buffer capcity.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_capacity</span>(<span class="ident">size</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="self">Self</span> {
+            <span class="ident">options</span>: <span class="ident">CompatibilityTable</span>::<span class="ident">new</span>(),
+            <span class="ident">buffer</span>: <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">size</span>),
+        }
+    }
+    <span class="doccomment">/// Create an parser, setting the initial internal buffer capcity and directly supplying a CompatibilityTable.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_support_and_capacity</span>(<span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">table</span>: <span class="ident">CompatibilityTable</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="self">Self</span> {
+            <span class="ident">options</span>: <span class="ident">table</span>,
+            <span class="ident">buffer</span>: <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">size</span>),
+        }
+    }
     <span class="doccomment">/// Create a parser, directly supplying a CompatibilityTable.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Uses the default initial buffer capacity of 128 bytes.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">with_support</span>(<span class="ident">table</span>: <span class="ident">CompatibilityTable</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">options</span>: <span class="ident">table</span>,
@@ -456,15 +485,17 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Returns</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// `Vec&lt;u8&gt;` - The bytes to send to the remote side.</span>
+    <span class="doccomment">/// `events::TelnetEvents::DataSend` - A DataSend event to be processed.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Usage</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This and other methods meant for sending data to the remote end will generate a `TelnetEvents::Send(DataEvent)` event.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// These Send events contain a buffer that should be sent directly to the remote end, as it will have already been encoded properly.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">negotiate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">command</span>: <span class="ident">u8</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> {
-        <span class="macro">vec</span><span class="macro">!</span>[<span class="number">255</span>, <span class="ident">command</span>, <span class="ident">option</span>]
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">negotiate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">command</span>: <span class="ident">u8</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">events</span>::<span class="ident">TelnetEvents</span> {
+        <span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">build_send</span>(
+            <span class="ident">events</span>::<span class="ident">TelnetNegotiation</span>::<span class="ident">new</span>(<span class="ident">command</span>, <span class="ident">option</span>).<span class="ident">into_bytes</span>(),
+        )
     }
     <span class="doccomment">/// Indicate to the other side that you are able and wanting to utilize an option.</span>
     <span class="doccomment">///</span>
@@ -479,7 +510,7 @@
     <span class="doccomment">/// # Notes</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This method will do nothing if the option is not &quot;supported&quot; locally via the `CompatibilityTable`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_will</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_will</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">events</span>::<span class="ident">TelnetEvents</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">opt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">get_option</span>(<span class="ident">option</span>);
         <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">local</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="op">!</span><span class="ident">opt</span>.<span class="ident">local_state</span> {
             <span class="ident">opt</span>.<span class="ident">local_state</span> <span class="op">=</span> <span class="bool-val">true</span>;
@@ -497,9 +528,9 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Returns</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// `Option&lt;Vec&lt;u8&gt;&gt;` - The bytes to send to the remote side, or None if the option is already disabled.</span>
+    <span class="doccomment">/// `Option&lt;events::TelnetEvents::DataSend&gt;` - A DataSend event to be processed, or None if the option is already disabled.</span>
     <span class="doccomment">///</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_wont</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_wont</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">events</span>::<span class="ident">TelnetEvents</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">opt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">get_option</span>(<span class="ident">option</span>);
         <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">local_state</span> {
             <span class="ident">opt</span>.<span class="ident">local_state</span> <span class="op">=</span> <span class="bool-val">false</span>;
@@ -517,12 +548,12 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Returns</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// `Option&lt;Vec&lt;u8&gt;&gt;` - The bytes to send to the remote side, or None if the option is not supported or already enabled.</span>
+    <span class="doccomment">/// `Option&lt;events::TelnetEvents::DataSend&gt;` - A DataSend event to be processed, or None if the option is not supported or already enabled.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Notes</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This method will do nothing if the option is not &quot;supported&quot; remotely via the `CompatibilityTable`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_do</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_do</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">events</span>::<span class="ident">TelnetEvents</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">opt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">get_option</span>(<span class="ident">option</span>);
         <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">remote</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="op">!</span><span class="ident">opt</span>.<span class="ident">remote_state</span> {
             <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">negotiate</span>(<span class="number">253</span>, <span class="ident">option</span>))
@@ -538,9 +569,9 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Returns</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// `Option&lt;Vec&lt;u8&gt;&gt;` - The bytes to send to the remote side, or None if the option is already disabled.</span>
+    <span class="doccomment">/// `Option&lt;events::TelnetEvents::DataSend&gt;` - A DataSend event to be processed, or None if the option is already disabled.</span>
     <span class="doccomment">///</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_dont</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_dont</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">events</span>::<span class="ident">TelnetEvents</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">opt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">get_option</span>(<span class="ident">option</span>);
         <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">remote_state</span> {
             <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">negotiate</span>(<span class="number">254</span>, <span class="ident">option</span>))
@@ -558,22 +589,17 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Returns</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// `Option&lt;Vec&lt;u8&gt;&gt;` - The bytes to send to the remote side, or None if the option is not supported or is currently disabled.</span>
+    <span class="doccomment">/// `Option&lt;events::TelnetEvents::DataSend&gt;` - A DataSend event to be processed, or None if the option is not supported or is currently disabled.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Notes</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This method will do nothing if the option is not &quot;supported&quot; locally via the `CompatibilityTable`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subnegotiation</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>, <span class="ident">data</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subnegotiation</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>, <span class="ident">data</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">events</span>::<span class="ident">TelnetEvents</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">opt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">get_option</span>(<span class="ident">option</span>);
         <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">local</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">opt</span>.<span class="ident">local_state</span> {
-            <span class="prelude-val">Some</span>(
-                [
-                    <span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">250</span>, <span class="ident">option</span>],
-                    <span class="kw-2">&amp;</span><span class="ident">Parser</span>::<span class="ident">escape_iac</span>(<span class="ident">data</span>)[..],
-                    <span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">240</span>],
-                ]
-                .<span class="ident">concat</span>(),
-            )
+            <span class="prelude-val">Some</span>(<span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">build_send</span>(
+                <span class="ident">events</span>::<span class="ident">TelnetSubnegotiation</span>::<span class="ident">new</span>(<span class="ident">option</span>, <span class="kw-2">&amp;</span><span class="ident">data</span>).<span class="ident">into_bytes</span>(),
+            ))
         } <span class="kw">else</span> {
             <span class="prelude-val">None</span>
         }
@@ -588,25 +614,25 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Returns</span>
     <span class="doccomment">///</span>
-    <span class="doccomment">/// `Option&lt;Vec&lt;u8&gt;&gt;` - The bytes to send to the remote side, or None if the option is not supported or is currently disabled.</span>
+    <span class="doccomment">/// `Option&lt;events::TelnetEvents::DataSend&gt;` - A DataSend event to be processed, or None if the option is not supported or is currently disabled.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Notes</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This method will do nothing if the option is not &quot;supported&quot; locally via the `CompatibilityTable`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subnegotiation_text</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>, <span class="ident">text</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subnegotiation_text</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>, <span class="ident">text</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">events</span>::<span class="ident">TelnetEvents</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">subnegotiation</span>(<span class="ident">option</span>, <span class="ident">String</span>::<span class="ident">from</span>(<span class="ident">text</span>).<span class="ident">into_bytes</span>())
     }
     <span class="doccomment">/// Directly send a string, with appended `\r\n`, to the remote end, along with an `IAC (255) GOAHEAD (249)` sequence.</span>
     <span class="doccomment">///</span>
+    <span class="doccomment">/// # Returns</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `events::TelnetEvents::DataSend` - A DataSend event to be processed.</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// # Notes</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// The string will have IAC (255) bytes escaped before being sent.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send_text</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">text</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> {
-        [
-            <span class="kw-2">&amp;</span><span class="ident">Parser</span>::<span class="ident">escape_iac</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}\r\n&quot;</span>, <span class="ident">text</span>).<span class="ident">into_bytes</span>())[..],
-            <span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">249</span>],
-        ]
-        .<span class="ident">concat</span>()
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send_text</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">text</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">events</span>::<span class="ident">TelnetEvents</span> {
+        <span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">build_send</span>(<span class="ident">Parser</span>::<span class="ident">escape_iac</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}\r\n&quot;</span>, <span class="ident">text</span>).<span class="ident">into_bytes</span>()))
     }
     <span class="doccomment">/// The internal parser method that takes the current buffer and generates the corresponding events.</span>
     <span class="kw">fn</span> <span class="ident">process</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">events</span>::<span class="ident">TelnetEvents</span><span class="op">&gt;</span> {
