@@ -23,11 +23,27 @@ impl Default for Parser {
 }
 
 impl Parser {
-    /// Create a default, empty Parser.
+    /// Create a default, empty Parser with an internal buffer capacity of 128 bytes.
     pub fn new() -> Self {
         Self::default()
     }
+    /// Create an empty parser, setting the initial internal buffer capcity.
+    pub fn with_capacity(size: usize) -> Self {
+        Self {
+            options: CompatibilityTable::new(),
+            buffer: Vec::with_capacity(size),
+        }
+    }
+    /// Create an parser, setting the initial internal buffer capcity and directly supplying a CompatibilityTable.
+    pub fn with_support_and_capacity(size: usize, table: CompatibilityTable) -> Self {
+        Self {
+            options: table,
+            buffer: Vec::with_capacity(size),
+        }
+    }
     /// Create a parser, directly supplying a CompatibilityTable.
+    ///
+    /// Uses the default initial buffer capacity of 128 bytes.
     pub fn with_support(table: CompatibilityTable) -> Self {
         Self {
             options: table,
@@ -88,7 +104,7 @@ impl Parser {
     ///
     /// # Returns
     ///
-    /// `Vec<u8>` - The bytes to send to the remote side.
+    /// `events::TelnetEvents::DataSend` - A DataSend event to be processed.
     ///
     /// # Usage
     ///
@@ -131,7 +147,7 @@ impl Parser {
     ///
     /// # Returns
     ///
-    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is already disabled.
+    /// `Option<events::TelnetEvents::DataSend>` - A DataSend event to be processed, or None if the option is already disabled.
     ///
     pub fn _wont(&mut self, option: u8) -> Option<events::TelnetEvents> {
         let mut opt = self.options.get_option(option);
@@ -151,7 +167,7 @@ impl Parser {
     ///
     /// # Returns
     ///
-    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is not supported or already enabled.
+    /// `Option<events::TelnetEvents::DataSend>` - A DataSend event to be processed, or None if the option is not supported or already enabled.
     ///
     /// # Notes
     ///
@@ -172,7 +188,7 @@ impl Parser {
     ///
     /// # Returns
     ///
-    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is already disabled.
+    /// `Option<events::TelnetEvents::DataSend>` - A DataSend event to be processed, or None if the option is already disabled.
     ///
     pub fn _dont(&mut self, option: u8) -> Option<events::TelnetEvents> {
         let opt = self.options.get_option(option);
@@ -192,7 +208,7 @@ impl Parser {
     ///
     /// # Returns
     ///
-    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is not supported or is currently disabled.
+    /// `Option<events::TelnetEvents::DataSend>` - A DataSend event to be processed, or None if the option is not supported or is currently disabled.
     ///
     /// # Notes
     ///
@@ -217,7 +233,7 @@ impl Parser {
     ///
     /// # Returns
     ///
-    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is not supported or is currently disabled.
+    /// `Option<events::TelnetEvents::DataSend>` - A DataSend event to be processed, or None if the option is not supported or is currently disabled.
     ///
     /// # Notes
     ///
@@ -226,6 +242,10 @@ impl Parser {
         self.subnegotiation(option, String::from(text).into_bytes())
     }
     /// Directly send a string, with appended `\r\n`, to the remote end, along with an `IAC (255) GOAHEAD (249)` sequence.
+    ///
+    /// # Returns
+    ///
+    /// `events::TelnetEvents::DataSend` - A DataSend event to be processed.
     ///
     /// # Notes
     ///
