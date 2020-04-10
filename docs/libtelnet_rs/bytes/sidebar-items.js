@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["concat","Concatenate 2 `&[u8]` slices into a `Vec<u8>`"]]});
+initSidebarItems({"fn":[["concat","Alias for Vec<&[u8]>.concat because the type system makes it very verbose."]]});
