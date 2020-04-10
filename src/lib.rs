@@ -1,4 +1,3 @@
-pub mod bytes;
 pub mod compatibility;
 pub mod events;
 pub mod telnet;
@@ -199,11 +198,14 @@ impl Parser {
     pub fn subnegotiation(&mut self, option: u8, data: Vec<u8>) -> Option<Vec<u8>> {
         let opt = self.options.get_option(option);
         if opt.local && opt.local_state {
-            Some(bytes::concat(vec![
-                &[255, 250, option],
-                &Parser::escape_iac(data),
-                &[255, 240],
-            ]))
+            Some(
+                [
+                    &[255, 250, option],
+                    &Parser::escape_iac(data)[..],
+                    &[255, 240],
+                ]
+                .concat(),
+            )
         } else {
             None
         }
@@ -232,10 +234,11 @@ impl Parser {
     ///
     /// The string will have IAC (255) bytes escaped before being sent.
     pub fn send_text(&mut self, text: &str) -> Vec<u8> {
-        bytes::concat(vec![
-            &Parser::escape_iac(format!("{}\r\n", text).into_bytes()),
+        [
+            &Parser::escape_iac(format!("{}\r\n", text).into_bytes())[..],
             &[255, 249],
-        ])
+        ]
+        .concat()
     }
     /// The internal parser method that takes the current buffer and generates the corresponding events.
     fn process(&mut self) -> Vec<events::TelnetEvents> {

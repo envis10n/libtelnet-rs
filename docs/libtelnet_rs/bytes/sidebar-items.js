@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["concat","Alias for Vec<&[u8]>.concat because the type system makes it very verbose."]]});
