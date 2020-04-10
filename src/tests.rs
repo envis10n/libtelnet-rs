@@ -31,7 +31,7 @@ fn test_parser() {
   if let Some(buffer) = instance._will(201) {
     handle_events(vec![events::TelnetEvents::build_send(buffer)]);
   }
-  handle_events(instance.receive(&bytes::concat(b"Hello, rust!", &[255, 249])));
+  handle_events(instance.receive(&bytes::concat(vec![b"Hello, rust!", &[255, 249]])));
   handle_events(instance.receive(&[255, 253, 201]));
   handle_events(
     instance.receive(&events::TelnetSubnegotiation::new(201, b"Core.Hello {}").into_bytes()),

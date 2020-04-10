@@ -50,9 +50,11 @@ impl TelnetSubnegotiation {
   }
   /// Consume the sequence struct and return the bytes.
   pub fn into_bytes(self) -> Vec<u8> {
-    let start: &[u8] = &[255, 250, self.option];
-    let mid = bytes::concat(start, &Parser::escape_iac(self.buffer));
-    bytes::concat(&mid, &[255, 240])
+    bytes::concat(vec![
+      &[255, 250, self.option],
+      &Parser::escape_iac(self.buffer),
+      &[255, 240],
+    ])
   }
 }
 
