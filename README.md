@@ -1,5 +1,5 @@
-![Rust](https://github.com/envis10n/libtelnet-rs/workflows/Rust/badge.svg?branch=master)
-![Crates.io](https://img.shields.io/crates/v/libtelnet-rs)
+[![Rust](https://github.com/envis10n/libtelnet-rs/workflows/Rust/badge.svg?branch=master)](https://github.com/envis10n/libtelnet-rs)
+[![Crates.io](https://img.shields.io/crates/v/libtelnet-rs)](https://crates.io/crates/libtelnet-rs)
 # libtelnet-rs
 
 libtelnet-inspired telnet parser for rust.
