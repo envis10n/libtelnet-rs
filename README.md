@@ -14,8 +14,8 @@ When data comes in from the socket, immediately send it into the parser with `pa
 
 This will append it to the current internal buffer, and then process any events that are in the buffer.
 
-After processing, all telnet events will be pushed out through the event hooks provided to the parser via `parser.add_hooks(hooks_struct)`.
+After processing, all telnet events will be returned by `parser.receive()` and can be looped over and handled as needed.
 
 Anything to be sent back over the socket to the remote end should be sent through the parser as well, to ensure any data will be encoded properly for the telnet protocol.
 
-Data to be sent will be pushed to the event hooks through the `on_send` event method.
+Data to be sent will be provided either by a `events::TelnetEvents::DataSend` event after processing, or as a `Vec<u8>` as a return from any method used for sending data.

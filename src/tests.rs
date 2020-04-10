@@ -1,51 +1,41 @@
 use super::*;
 
-struct TelEvent;
+/// Test the parser and its general functionality.
 
-impl TelnetEvents for TelEvent {
-  fn on_iac(&mut self, command: u8) {
-    println!("IAC: {}", command);
-  }
-  fn on_data(&mut self, size: usize, buffer: Vec<u8>) {
-    println!(
-      "Data: {} byte(s) | {}",
-      size,
-      String::from_utf8(buffer).unwrap()
-    );
-  }
-  fn on_send(&mut self, size: usize, buffer: Vec<u8>) {
-    println!("Send: {} byte(s) | {:?}", size, buffer);
-  }
-  fn on_negotiation(&mut self, command: u8, option: u8) {
-    println!("Negotiate: {} {}", command, option);
-  }
-  fn on_subnegotiation(&mut self, option: u8, size: usize, buffer: Vec<u8>) {
-    match String::from_utf8(buffer.clone()) {
-      Ok(text) => {
-        println!("Subnegotiation: {} - {} byte(s) | {}", option, size, text);
+fn handle_events(event_list: Vec<events::TelnetEvents>) {
+  for event in event_list {
+    match event {
+      events::TelnetEvents::IAC(ev) => {
+        println!("IAC: {}", ev.command);
       }
-      Err(_) => {
-        println!(
-          "Subnegotiation: {} - {} byte(s) | {:?}",
-          option, size, buffer
-        );
+      events::TelnetEvents::Negotiation(ev) => {
+        println!("Negotiation: {} {}", ev.command, ev.option);
+      }
+      events::TelnetEvents::Subnegotiation(ev) => {
+        println!("Subnegotiation: {} {:?}", ev.option, ev.buffer);
+      }
+      events::TelnetEvents::DataReceive(buffer) => {
+        println!("Receive: {:?}", buffer);
+      }
+      events::TelnetEvents::DataSend(buffer) => {
+        println!("Send: {:?}", buffer);
       }
     }
   }
 }
 
-/// Test the parser and its general functionality.
 #[test]
 fn test_parser() {
   let mut instance: Parser = Parser::new();
-  instance.add_hooks(TelEvent);
   instance.options.support_local(201);
-  instance._will(201);
-  instance.receive(&bytes::concat(b"Hello, rust!", &[255, 249]));
-  instance.receive(&[255, 253, 201]);
-  instance.receive(&[255, 250, 201]);
-  instance.receive(b"Core.Hello {}");
-  instance.receive(&[255, 240]);
+  if let Some(buffer) = instance._will(201) {
+    handle_events(vec![events::TelnetEvents::build_send(buffer)]);
+  }
+  handle_events(instance.receive(&bytes::concat(b"Hello, rust!", &[255, 249])));
+  handle_events(instance.receive(&[255, 253, 201]));
+  handle_events(
+    instance.receive(&events::TelnetSubnegotiation::new(201, b"Core.Hello {}").into_bytes()),
+  );
 }
 
 /// Test escaping IAC bytes in a buffer.
