@@ -38,6 +38,16 @@ fn test_parser() {
   );
 }
 
+#[test]
+fn test_concat() {
+  let a: &[u8] = &[255, 102, 50, 65, 20];
+  let b: &[u8] = &[1, 2, 3];
+  let c: &[u8] = &[4, 5, 6, 7, 8, 9, 0];
+  let expected: Vec<u8> = vec![255, 102, 50, 65, 20, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0];
+  let actual: Vec<u8> = bytes::concat(vec![a, b, c]);
+  assert_eq!(expected, actual);
+}
+
 /// Test escaping IAC bytes in a buffer.
 #[test]
 fn test_escape() {
