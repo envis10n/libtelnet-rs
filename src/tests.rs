@@ -28,8 +28,8 @@ fn handle_events(event_list: Vec<events::TelnetEvents>) {
 fn test_parser() {
   let mut instance: Parser = Parser::new();
   instance.options.support_local(201);
-  if let Some(buffer) = instance._will(201) {
-    handle_events(vec![events::TelnetEvents::build_send(buffer)]);
+  if let Some(ev) = instance._will(201) {
+    handle_events(vec![ev]);
   }
   handle_events(instance.receive(&[b"Hello, rust!", &[255, 249][..]].concat()));
   handle_events(instance.receive(&[255, 253, 201]));
