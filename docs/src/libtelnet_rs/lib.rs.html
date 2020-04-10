@@ -377,11 +377,10 @@
 <span id="377">377</span>
 <span id="378">378</span>
 <span id="379">379</span>
-<span id="380">380</span>
-<span id="381">381</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">bytes</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">compatibility</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">events</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">telnet</span>;
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
@@ -389,60 +388,10 @@
 
 <span class="kw">use</span> <span class="ident">compatibility</span>::<span class="kw-2">*</span>;
 
-<span class="doccomment">/// A trait for event handlers of Telnet events.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// # Example</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// ```</span>
-<span class="doccomment">/// struct TelEvent;</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// impl TelnetEvents for TelEvent {</span>
-<span class="doccomment">///   fn on_iac(&amp;self, command: u8) {</span>
-<span class="doccomment">///     println!(&quot;IAC: {}&quot;, command);</span>
-<span class="doccomment">///   }</span>
-<span class="doccomment">///   fn on_data(&amp;self, size: usize, buffer: Vec&lt;u8&gt;) {</span>
-<span class="doccomment">///     println!(</span>
-<span class="doccomment">///       &quot;Data: {} byte(s) | {}&quot;,</span>
-<span class="doccomment">///       size,</span>
-<span class="doccomment">///       String::from_utf8(buffer).unwrap()</span>
-<span class="doccomment">///     );</span>
-<span class="doccomment">///   }</span>
-<span class="doccomment">///   fn on_send(&amp;self, size: usize, buffer: Vec&lt;u8&gt;) {</span>
-<span class="doccomment">///     println!(&quot;Send: {} byte(s) | {:?}&quot;, size, buffer);</span>
-<span class="doccomment">///   }</span>
-<span class="doccomment">///   fn on_negotiation(&amp;self, command: u8, option: u8) {</span>
-<span class="doccomment">///     println!(&quot;Negotiate: {} {}&quot;, command, option);</span>
-<span class="doccomment">///   }</span>
-<span class="doccomment">///   fn on_subnegotiation(&amp;self, option: u8, size: usize, buffer: Vec&lt;u8&gt;) {</span>
-<span class="doccomment">///     match String::from_utf8(buffer.clone()) {</span>
-<span class="doccomment">///       Ok(text) =&gt; {</span>
-<span class="doccomment">///         println!(&quot;Subnegotiation: {} - {} byte(s) | {}&quot;, option, size, text);</span>
-<span class="doccomment">///       }</span>
-<span class="doccomment">///       Err(_) =&gt; {</span>
-<span class="doccomment">///         println!(</span>
-<span class="doccomment">///           &quot;Subnegotiation: {} - {} byte(s) | {:?}&quot;,</span>
-<span class="doccomment">///           option, size, buffer</span>
-<span class="doccomment">///         );</span>
-<span class="doccomment">///       }</span>
-<span class="doccomment">///     }</span>
-<span class="doccomment">///   }</span>
-<span class="doccomment">/// }</span>
-<span class="doccomment">/// ```</span>
-<span class="doccomment">///</span>
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_variables</span>)]</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">TelnetEvents</span> {
-    <span class="kw">fn</span> <span class="ident">on_iac</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">command</span>: <span class="ident">u8</span>) {}
-    <span class="kw">fn</span> <span class="ident">on_negotiation</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">command</span>: <span class="ident">u8</span>, <span class="ident">option</span>: <span class="ident">u8</span>) {}
-    <span class="kw">fn</span> <span class="ident">on_subnegotiation</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>, <span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {}
-    <span class="kw">fn</span> <span class="ident">on_data</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {}
-    <span class="kw">fn</span> <span class="ident">on_send</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">size</span>: <span class="ident">usize</span>, <span class="ident">buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {}
-}
-
 <span class="doccomment">/// A telnet parser that handles the main parts of the protocol.</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Parser</span> {
     <span class="kw">pub</span> <span class="ident">options</span>: <span class="ident">CompatibilityTable</span>,
     <span class="ident">buffer</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
-    <span class="ident">hooks</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="ident">dyn</span> <span class="ident">TelnetEvents</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">Parser</span> {
@@ -450,7 +399,6 @@
         <span class="ident">Parser</span> {
             <span class="ident">options</span>: <span class="ident">CompatibilityTable</span>::<span class="ident">new</span>(),
             <span class="ident">buffer</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
-            <span class="ident">hooks</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
         }
     }
 }
@@ -465,17 +413,7 @@
         <span class="self">Self</span> {
             <span class="ident">options</span>: <span class="ident">table</span>,
             <span class="ident">buffer</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
-            <span class="ident">hooks</span>: <span class="ident">Vec</span>::<span class="ident">new</span>(),
         }
-    }
-    <span class="doccomment">/// Add a struct that implements the event hooks called when processing.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Arguments</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// `hook` - A struct implementing the TelnetEvents trait.</span>
-    <span class="doccomment">///</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_hooks</span><span class="op">&lt;</span><span class="ident">E</span>: <span class="ident">TelnetEvents</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">hook</span>: <span class="ident">E</span>) {
-        <span class="self">self</span>.<span class="ident">hooks</span>.<span class="ident">push</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">hook</span>));
     }
     <span class="doccomment">/// Receive bytes into the internal buffer.</span>
     <span class="doccomment">///</span>
@@ -483,9 +421,13 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// * `data` - The bytes to be received. This should be sourced from the remote side of a connection.</span>
     <span class="doccomment">///</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">receive</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) {
+    <span class="doccomment">/// # Returns</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `Vec&lt;events::TelnetEvents&gt;` - Any events parsed from the internal buffer with the new bytes.</span>
+    <span class="doccomment">///</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">receive</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">events</span>::<span class="ident">TelnetEvents</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">buffer</span> <span class="op">=</span> <span class="ident">bytes</span>::<span class="ident">concat</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">buffer</span>, <span class="ident">data</span>);
-        <span class="self">self</span>.<span class="ident">process</span>();
+        <span class="self">self</span>.<span class="ident">process</span>()
     }
     <span class="doccomment">/// Escape IAC bytes in data that is to be transmitted and treated as a non-IAC sequence.</span>
     <span class="doccomment">///</span>
@@ -525,13 +467,17 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// `option` - A `u8` representing the telnet option code that is being negotiated.</span>
     <span class="doccomment">///</span>
+    <span class="doccomment">/// # Returns</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `Vec&lt;u8&gt;` - The bytes to send to the remote side.</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// # Usage</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This and other methods meant for sending data to the remote end will generate a `TelnetEvents::Send(DataEvent)` event.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// These Send events contain a buffer that should be sent directly to the remote end, as it will have already been encoded properly.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">negotiate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">command</span>: <span class="ident">u8</span>, <span class="ident">option</span>: <span class="ident">u8</span>) {
-        <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="ident">command</span>, <span class="ident">option</span>]);
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">negotiate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">command</span>: <span class="ident">u8</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="ident">command</span>, <span class="ident">option</span>])
     }
     <span class="doccomment">/// Indicate to the other side that you are able and wanting to utilize an option.</span>
     <span class="doccomment">///</span>
@@ -539,15 +485,21 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// `option` - A `u8` representing the telnet option code that you want to enable locally.</span>
     <span class="doccomment">///</span>
+    <span class="doccomment">/// # Returns</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `Option&lt;Vec&lt;u8&gt;&gt;` - The bytes to send to the remote side, or None if the option is not supported or already enabled.</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// # Notes</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This method will do nothing if the option is not &quot;supported&quot; locally via the `CompatibilityTable`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_will</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_will</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">opt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">get_option</span>(<span class="ident">option</span>);
         <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">local</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="op">!</span><span class="ident">opt</span>.<span class="ident">local_state</span> {
             <span class="ident">opt</span>.<span class="ident">local_state</span> <span class="op">=</span> <span class="bool-val">true</span>;
-            <span class="self">self</span>.<span class="ident">negotiate</span>(<span class="number">251</span>, <span class="ident">option</span>);
             <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">set_option</span>(<span class="ident">option</span>, <span class="ident">opt</span>);
+            <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">negotiate</span>(<span class="number">251</span>, <span class="ident">option</span>))
+        } <span class="kw">else</span> {
+            <span class="prelude-val">None</span>
         }
     }
     <span class="doccomment">/// Indicate to the other side that you are not wanting to utilize an option.</span>
@@ -556,12 +508,18 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// `option` - A `u8` representing the telnet option code that you want to disable locally.</span>
     <span class="doccomment">///</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_wont</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) {
+    <span class="doccomment">/// # Returns</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `Option&lt;Vec&lt;u8&gt;&gt;` - The bytes to send to the remote side, or None if the option is already disabled.</span>
+    <span class="doccomment">///</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_wont</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">opt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">get_option</span>(<span class="ident">option</span>);
         <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">local_state</span> {
             <span class="ident">opt</span>.<span class="ident">local_state</span> <span class="op">=</span> <span class="bool-val">false</span>;
-            <span class="self">self</span>.<span class="ident">negotiate</span>(<span class="number">252</span>, <span class="ident">option</span>);
             <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">set_option</span>(<span class="ident">option</span>, <span class="ident">opt</span>);
+            <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">negotiate</span>(<span class="number">252</span>, <span class="ident">option</span>))
+        } <span class="kw">else</span> {
+            <span class="prelude-val">None</span>
         }
     }
     <span class="doccomment">/// Indicate to the other side that you would like them to utilize an option.</span>
@@ -570,13 +528,19 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// `option` - A `u8` representing the telnet option code that you want to enable remotely.</span>
     <span class="doccomment">///</span>
+    <span class="doccomment">/// # Returns</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `Option&lt;Vec&lt;u8&gt;&gt;` - The bytes to send to the remote side, or None if the option is not supported or already enabled.</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// # Notes</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This method will do nothing if the option is not &quot;supported&quot; remotely via the `CompatibilityTable`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_do</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_do</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">opt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">get_option</span>(<span class="ident">option</span>);
         <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">remote</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="op">!</span><span class="ident">opt</span>.<span class="ident">remote_state</span> {
-            <span class="self">self</span>.<span class="ident">negotiate</span>(<span class="number">253</span>, <span class="ident">option</span>);
+            <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">negotiate</span>(<span class="number">253</span>, <span class="ident">option</span>))
+        } <span class="kw">else</span> {
+            <span class="prelude-val">None</span>
         }
     }
     <span class="doccomment">/// Indicate to the other side that you would like them to stop utilizing an option.</span>
@@ -585,10 +549,16 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// `option` - A `u8` representing the telnet option code that you want to disable remotely.</span>
     <span class="doccomment">///</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_dont</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) {
+    <span class="doccomment">/// # Returns</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `Option&lt;Vec&lt;u8&gt;&gt;` - The bytes to send to the remote side, or None if the option is already disabled.</span>
+    <span class="doccomment">///</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">_dont</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">opt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">get_option</span>(<span class="ident">option</span>);
         <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">remote_state</span> {
-            <span class="self">self</span>.<span class="ident">negotiate</span>(<span class="number">254</span>, <span class="ident">option</span>);
+            <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">negotiate</span>(<span class="number">254</span>, <span class="ident">option</span>))
+        } <span class="kw">else</span> {
+            <span class="prelude-val">None</span>
         }
     }
     <span class="doccomment">/// Send a subnegotiation for a locally supported option.</span>
@@ -599,16 +569,22 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// `data` - A `Vec&lt;u8&gt;` containing the data to be sent in the subnegotiation. This data will have all IAC (255) byte values escaped.</span>
     <span class="doccomment">///</span>
+    <span class="doccomment">/// # Returns</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `Option&lt;Vec&lt;u8&gt;&gt;` - The bytes to send to the remote side, or None if the option is not supported or is currently disabled.</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// # Notes</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This method will do nothing if the option is not &quot;supported&quot; locally via the `CompatibilityTable`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subnegotiation</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>, <span class="ident">data</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subnegotiation</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>, <span class="ident">data</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">opt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">get_option</span>(<span class="ident">option</span>);
         <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">local</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">opt</span>.<span class="ident">local_state</span> {
-            <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>::<span class="ident">concat</span>(
+            <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>::<span class="ident">concat</span>(
                 <span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">250</span>, <span class="ident">option</span>],
                 <span class="kw-2">&amp;</span><span class="ident">bytes</span>::<span class="ident">concat</span>(<span class="kw-2">&amp;</span><span class="ident">Parser</span>::<span class="ident">escape_iac</span>(<span class="ident">data</span>), <span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">240</span>]),
-            ));
+            )))
+        } <span class="kw">else</span> {
+            <span class="prelude-val">None</span>
         }
     }
     <span class="doccomment">/// Send a subnegotiation for a locally supported option, using a string instead of raw byte values.</span>
@@ -619,35 +595,47 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// `text` - A `&amp;str` representing the text to be sent in the subnegotation. This data will have all IAC (255) byte values escaped.</span>
     <span class="doccomment">///</span>
+    <span class="doccomment">/// # Returns</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `Option&lt;Vec&lt;u8&gt;&gt;` - The bytes to send to the remote side, or None if the option is not supported or is currently disabled.</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// # Notes</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This method will do nothing if the option is not &quot;supported&quot; locally via the `CompatibilityTable`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subnegotiation_text</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>, <span class="ident">text</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) {
-        <span class="self">self</span>.<span class="ident">subnegotiation</span>(<span class="ident">option</span>, <span class="ident">String</span>::<span class="ident">from</span>(<span class="ident">text</span>).<span class="ident">into_bytes</span>());
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">subnegotiation_text</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">option</span>: <span class="ident">u8</span>, <span class="ident">text</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">subnegotiation</span>(<span class="ident">option</span>, <span class="ident">String</span>::<span class="ident">from</span>(<span class="ident">text</span>).<span class="ident">into_bytes</span>())
     }
     <span class="doccomment">/// Directly send a buffer to the remote end.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # Arguments</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// `data` - A u8 slice containing the bytes to send</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Notes</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// The buffer supplied here will NOT be escaped. It is recommended to avoid using this method in favor of the more specialized methods.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) {
-        <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hooks</span> {
-            <span class="ident">hook</span>.<span class="ident">on_send</span>(<span class="ident">data</span>.<span class="ident">len</span>(), <span class="ident">Vec</span>::<span class="ident">from</span>(<span class="ident">data</span>));
-        }
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// # TODO</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Remove this method as it is now an alias for `Vec::from(&amp;[u8])`</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> {
+        <span class="ident">Vec</span>::<span class="ident">from</span>(<span class="ident">data</span>)
     }
     <span class="doccomment">/// Directly send a string, with appended `\r\n`, to the remote end, along with an `IAC (255) GOAHEAD (249)` sequence.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// # Notes</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// The string will have IAC (255) bytes escaped before being sent.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send_text</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">text</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send_text</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">text</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>::<span class="ident">concat</span>(
             <span class="kw-2">&amp;</span><span class="ident">Parser</span>::<span class="ident">escape_iac</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}\r\n&quot;</span>, <span class="ident">text</span>).<span class="ident">into_bytes</span>()),
             <span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">249</span>],
-        ));
+        ))
     }
     <span class="doccomment">/// The internal parser method that takes the current buffer and generates the corresponding events.</span>
-    <span class="kw">fn</span> <span class="ident">process</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
+    <span class="kw">fn</span> <span class="ident">process</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">events</span>::<span class="ident">TelnetEvents</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">t</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">event_list</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">events</span>::<span class="ident">TelnetEvents</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
         <span class="kw">let</span> <span class="ident">iter</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">offset_next</span>: <span class="ident">usize</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">offset_last</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">0</span>;
@@ -673,9 +661,7 @@
                     <span class="number">2</span> <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="kw">if</span> <span class="ident">buffer</span>[<span class="number">1</span>] <span class="op">!</span><span class="op">=</span> <span class="number">240</span> {
                             <span class="comment">// IAC command</span>
-                            <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hooks</span> {
-                                <span class="ident">hook</span>.<span class="ident">on_iac</span>(<span class="ident">buffer</span>[<span class="number">1</span>]);
-                            }
+                            <span class="ident">event_list</span>.<span class="ident">push</span>(<span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">build_iac</span>(<span class="ident">buffer</span>[<span class="number">1</span>]));
                         }
                     }
                     <span class="number">3</span> <span class="op">=</span><span class="op">&gt;</span> {
@@ -685,15 +671,21 @@
                         } <span class="kw">else</span> {
                             <span class="comment">// Negotiation</span>
                             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">opt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">get_option</span>(<span class="ident">buffer</span>[<span class="number">2</span>]);
+                            <span class="kw">let</span> <span class="ident">event</span> <span class="op">=</span> <span class="ident">events</span>::<span class="ident">TelnetNegotiation</span>::<span class="ident">new</span>(<span class="ident">buffer</span>[<span class="number">1</span>], <span class="ident">buffer</span>[<span class="number">2</span>]);
                             <span class="kw">match</span> <span class="ident">buffer</span>[<span class="number">1</span>] {
                                 <span class="number">251</span> <span class="op">=</span><span class="op">&gt;</span> {
                                     <span class="comment">// WILL</span>
                                     <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">remote</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="op">!</span><span class="ident">opt</span>.<span class="ident">remote_state</span> {
                                         <span class="ident">opt</span>.<span class="ident">remote_state</span> <span class="op">=</span> <span class="bool-val">true</span>;
-                                        <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">253</span>, <span class="ident">buffer</span>[<span class="number">2</span>]]);
+                                        <span class="ident">event_list</span>.<span class="ident">push</span>(<span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">build_send</span>(
+                                            <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">253</span>, <span class="ident">buffer</span>[<span class="number">2</span>]]),
+                                        ));
                                         <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">set_option</span>(<span class="ident">buffer</span>[<span class="number">2</span>], <span class="ident">opt</span>);
+                                        <span class="ident">event_list</span>.<span class="ident">push</span>(<span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">Negotiation</span>(<span class="ident">event</span>));
                                     } <span class="kw">else</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">opt</span>.<span class="ident">remote</span> {
-                                        <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">254</span>, <span class="ident">buffer</span>[<span class="number">2</span>]]);
+                                        <span class="ident">event_list</span>.<span class="ident">push</span>(<span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">build_send</span>(
+                                            <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">254</span>, <span class="ident">buffer</span>[<span class="number">2</span>]]),
+                                        ));
                                     }
                                 }
                                 <span class="number">252</span> <span class="op">=</span><span class="op">&gt;</span> {
@@ -701,18 +693,26 @@
                                     <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">remote_state</span> {
                                         <span class="ident">opt</span>.<span class="ident">remote_state</span> <span class="op">=</span> <span class="bool-val">false</span>;
                                         <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">set_option</span>(<span class="ident">buffer</span>[<span class="number">2</span>], <span class="ident">opt</span>);
-                                        <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">254</span>, <span class="ident">buffer</span>[<span class="number">2</span>]]);
+                                        <span class="ident">event_list</span>.<span class="ident">push</span>(<span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">build_send</span>(
+                                            <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">254</span>, <span class="ident">buffer</span>[<span class="number">2</span>]]),
+                                        ));
                                     }
+                                    <span class="ident">event_list</span>.<span class="ident">push</span>(<span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">Negotiation</span>(<span class="ident">event</span>));
                                 }
                                 <span class="number">253</span> <span class="op">=</span><span class="op">&gt;</span> {
                                     <span class="comment">// DO</span>
                                     <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">local</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="op">!</span><span class="ident">opt</span>.<span class="ident">local_state</span> {
                                         <span class="ident">opt</span>.<span class="ident">local_state</span> <span class="op">=</span> <span class="bool-val">true</span>;
                                         <span class="ident">opt</span>.<span class="ident">remote_state</span> <span class="op">=</span> <span class="bool-val">true</span>;
-                                        <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">251</span>, <span class="ident">buffer</span>[<span class="number">2</span>]]);
+                                        <span class="ident">event_list</span>.<span class="ident">push</span>(<span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">build_send</span>(
+                                            <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">251</span>, <span class="ident">buffer</span>[<span class="number">2</span>]]),
+                                        ));
                                         <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">set_option</span>(<span class="ident">buffer</span>[<span class="number">2</span>], <span class="ident">opt</span>);
+                                        <span class="ident">event_list</span>.<span class="ident">push</span>(<span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">Negotiation</span>(<span class="ident">event</span>));
                                     } <span class="kw">else</span> <span class="kw">if</span> <span class="op">!</span><span class="ident">opt</span>.<span class="ident">local</span> {
-                                        <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">252</span>, <span class="ident">buffer</span>[<span class="number">2</span>]]);
+                                        <span class="ident">event_list</span>.<span class="ident">push</span>(<span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">build_send</span>(
+                                            <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">252</span>, <span class="ident">buffer</span>[<span class="number">2</span>]]),
+                                        ));
                                     }
                                 }
                                 <span class="number">254</span> <span class="op">=</span><span class="op">&gt;</span> {
@@ -720,13 +720,13 @@
                                     <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">local_state</span> {
                                         <span class="ident">opt</span>.<span class="ident">local_state</span> <span class="op">=</span> <span class="bool-val">false</span>;
                                         <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">set_option</span>(<span class="ident">buffer</span>[<span class="number">2</span>], <span class="ident">opt</span>);
-                                        <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">252</span>, <span class="ident">buffer</span>[<span class="number">2</span>]]);
+                                        <span class="ident">event_list</span>.<span class="ident">push</span>(<span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">build_send</span>(
+                                            <span class="self">self</span>.<span class="ident">send</span>(<span class="kw-2">&amp;</span>[<span class="number">255</span>, <span class="number">252</span>, <span class="ident">buffer</span>[<span class="number">2</span>]]),
+                                        ));
                                     }
+                                    <span class="ident">event_list</span>.<span class="ident">push</span>(<span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">Negotiation</span>(<span class="ident">event</span>));
                                 }
                                 <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> (),
-                            }
-                            <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hooks</span> {
-                                <span class="ident">hook</span>.<span class="ident">on_negotiation</span>(<span class="ident">buffer</span>[<span class="number">1</span>], <span class="ident">buffer</span>[<span class="number">2</span>]);
                             }
                         }
                     }
@@ -738,13 +738,10 @@
                             <span class="kw">let</span> <span class="ident">opt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">get_option</span>(<span class="ident">buffer</span>[<span class="number">2</span>]);
                             <span class="kw">if</span> <span class="ident">opt</span>.<span class="ident">local</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">opt</span>.<span class="ident">local_state</span> {
                                 <span class="kw">let</span> <span class="ident">dbuffer</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">buffer</span>[<span class="number">3</span>..<span class="ident">len</span> <span class="op">-</span> <span class="number">2</span>]);
-                                <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hooks</span> {
-                                    <span class="ident">hook</span>.<span class="ident">on_subnegotiation</span>(
-                                        <span class="ident">buffer</span>[<span class="number">2</span>],
-                                        <span class="ident">dbuffer</span>.<span class="ident">len</span>(),
-                                        <span class="ident">dbuffer</span>.<span class="ident">clone</span>(),
-                                    );
-                                }
+                                <span class="ident">event_list</span>.<span class="ident">push</span>(<span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">build_subnegotiation</span>(
+                                    <span class="ident">buffer</span>[<span class="number">2</span>],
+                                    <span class="ident">dbuffer</span>.<span class="ident">clone</span>(),
+                                ));
                             }
                         } <span class="kw">else</span> {
                             <span class="comment">// Missing the rest</span>
@@ -754,11 +751,10 @@
                 }
             } <span class="kw">else</span> {
                 <span class="comment">// Not an iac sequence, it&#39;s data!</span>
-                <span class="kw">for</span> <span class="ident">hook</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">hooks</span> {
-                    <span class="ident">hook</span>.<span class="ident">on_data</span>(<span class="ident">buffer</span>.<span class="ident">len</span>(), <span class="ident">buffer</span>.<span class="ident">clone</span>())
-                }
+                <span class="ident">event_list</span>.<span class="ident">push</span>(<span class="ident">events</span>::<span class="ident">TelnetEvents</span>::<span class="ident">build_receive</span>(<span class="ident">buffer</span>.<span class="ident">clone</span>()));
             }
         }
+        <span class="ident">event_list</span>
     }
 }
 </pre></div>

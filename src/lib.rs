@@ -1,5 +1,6 @@
 pub mod bytes;
 pub mod compatibility;
+pub mod events;
 pub mod telnet;
 
 #[cfg(test)]
@@ -7,60 +8,10 @@ mod tests;
 
 use compatibility::*;
 
-/// A trait for event handlers of Telnet events.
-///
-/// # Example
-///
-/// ```
-/// struct TelEvent;
-///
-/// impl TelnetEvents for TelEvent {
-///   fn on_iac(&self, command: u8) {
-///     println!("IAC: {}", command);
-///   }
-///   fn on_data(&self, size: usize, buffer: Vec<u8>) {
-///     println!(
-///       "Data: {} byte(s) | {}",
-///       size,
-///       String::from_utf8(buffer).unwrap()
-///     );
-///   }
-///   fn on_send(&self, size: usize, buffer: Vec<u8>) {
-///     println!("Send: {} byte(s) | {:?}", size, buffer);
-///   }
-///   fn on_negotiation(&self, command: u8, option: u8) {
-///     println!("Negotiate: {} {}", command, option);
-///   }
-///   fn on_subnegotiation(&self, option: u8, size: usize, buffer: Vec<u8>) {
-///     match String::from_utf8(buffer.clone()) {
-///       Ok(text) => {
-///         println!("Subnegotiation: {} - {} byte(s) | {}", option, size, text);
-///       }
-///       Err(_) => {
-///         println!(
-///           "Subnegotiation: {} - {} byte(s) | {:?}",
-///           option, size, buffer
-///         );
-///       }
-///     }
-///   }
-/// }
-/// ```
-///
-#[allow(unused_variables)]
-pub trait TelnetEvents {
-    fn on_iac(&mut self, command: u8) {}
-    fn on_negotiation(&mut self, command: u8, option: u8) {}
-    fn on_subnegotiation(&mut self, option: u8, size: usize, buffer: Vec<u8>) {}
-    fn on_data(&mut self, size: usize, buffer: Vec<u8>) {}
-    fn on_send(&mut self, size: usize, buffer: Vec<u8>) {}
-}
-
 /// A telnet parser that handles the main parts of the protocol.
 pub struct Parser {
     pub options: CompatibilityTable,
     buffer: Vec<u8>,
-    hooks: Vec<Box<dyn TelnetEvents>>,
 }
 
 impl Default for Parser {
@@ -68,7 +19,6 @@ impl Default for Parser {
         Parser {
             options: CompatibilityTable::new(),
             buffer: Vec::new(),
-            hooks: Vec::new(),
         }
     }
 }
@@ -83,17 +33,7 @@ impl Parser {
         Self {
             options: table,
             buffer: Vec::new(),
-            hooks: Vec::new(),
         }
-    }
-    /// Add a struct that implements the event hooks called when processing.
-    ///
-    /// # Arguments
-    ///
-    /// `hook` - A struct implementing the TelnetEvents trait.
-    ///
-    pub fn add_hooks<E: TelnetEvents + 'static>(&mut self, hook: E) {
-        self.hooks.push(Box::new(hook));
     }
     /// Receive bytes into the internal buffer.
     ///
@@ -101,9 +41,13 @@ impl Parser {
     ///
     /// * `data` - The bytes to be received. This should be sourced from the remote side of a connection.
     ///
-    pub fn receive(&mut self, data: &[u8]) {
+    /// # Returns
+    ///
+    /// `Vec<events::TelnetEvents>` - Any events parsed from the internal buffer with the new bytes.
+    ///
+    pub fn receive(&mut self, data: &[u8]) -> Vec<events::TelnetEvents> {
         self.buffer = bytes::concat(&self.buffer, data);
-        self.process();
+        self.process()
     }
     /// Escape IAC bytes in data that is to be transmitted and treated as a non-IAC sequence.
     ///
@@ -143,13 +87,17 @@ impl Parser {
     ///
     /// `option` - A `u8` representing the telnet option code that is being negotiated.
     ///
+    /// # Returns
+    ///
+    /// `Vec<u8>` - The bytes to send to the remote side.
+    ///
     /// # Usage
     ///
     /// This and other methods meant for sending data to the remote end will generate a `TelnetEvents::Send(DataEvent)` event.
     ///
     /// These Send events contain a buffer that should be sent directly to the remote end, as it will have already been encoded properly.
-    pub fn negotiate(&mut self, command: u8, option: u8) {
-        self.send(&[255, command, option]);
+    pub fn negotiate(&mut self, command: u8, option: u8) -> Vec<u8> {
+        self.send(&[255, command, option])
     }
     /// Indicate to the other side that you are able and wanting to utilize an option.
     ///
@@ -157,15 +105,21 @@ impl Parser {
     ///
     /// `option` - A `u8` representing the telnet option code that you want to enable locally.
     ///
+    /// # Returns
+    ///
+    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is not supported or already enabled.
+    ///
     /// # Notes
     ///
     /// This method will do nothing if the option is not "supported" locally via the `CompatibilityTable`.
-    pub fn _will(&mut self, option: u8) {
+    pub fn _will(&mut self, option: u8) -> Option<Vec<u8>> {
         let mut opt = self.options.get_option(option);
         if opt.local && !opt.local_state {
             opt.local_state = true;
-            self.negotiate(251, option);
             self.options.set_option(option, opt);
+            Some(self.negotiate(251, option))
+        } else {
+            None
         }
     }
     /// Indicate to the other side that you are not wanting to utilize an option.
@@ -174,12 +128,18 @@ impl Parser {
     ///
     /// `option` - A `u8` representing the telnet option code that you want to disable locally.
     ///
-    pub fn _wont(&mut self, option: u8) {
+    /// # Returns
+    ///
+    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is already disabled.
+    ///
+    pub fn _wont(&mut self, option: u8) -> Option<Vec<u8>> {
         let mut opt = self.options.get_option(option);
         if opt.local_state {
             opt.local_state = false;
-            self.negotiate(252, option);
             self.options.set_option(option, opt);
+            Some(self.negotiate(252, option))
+        } else {
+            None
         }
     }
     /// Indicate to the other side that you would like them to utilize an option.
@@ -188,13 +148,19 @@ impl Parser {
     ///
     /// `option` - A `u8` representing the telnet option code that you want to enable remotely.
     ///
+    /// # Returns
+    ///
+    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is not supported or already enabled.
+    ///
     /// # Notes
     ///
     /// This method will do nothing if the option is not "supported" remotely via the `CompatibilityTable`.
-    pub fn _do(&mut self, option: u8) {
+    pub fn _do(&mut self, option: u8) -> Option<Vec<u8>> {
         let opt = self.options.get_option(option);
         if opt.remote && !opt.remote_state {
-            self.negotiate(253, option);
+            Some(self.negotiate(253, option))
+        } else {
+            None
         }
     }
     /// Indicate to the other side that you would like them to stop utilizing an option.
@@ -203,10 +169,16 @@ impl Parser {
     ///
     /// `option` - A `u8` representing the telnet option code that you want to disable remotely.
     ///
-    pub fn _dont(&mut self, option: u8) {
+    /// # Returns
+    ///
+    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is already disabled.
+    ///
+    pub fn _dont(&mut self, option: u8) -> Option<Vec<u8>> {
         let opt = self.options.get_option(option);
         if opt.remote_state {
-            self.negotiate(254, option);
+            Some(self.negotiate(254, option))
+        } else {
+            None
         }
     }
     /// Send a subnegotiation for a locally supported option.
@@ -217,16 +189,22 @@ impl Parser {
     ///
     /// `data` - A `Vec<u8>` containing the data to be sent in the subnegotiation. This data will have all IAC (255) byte values escaped.
     ///
+    /// # Returns
+    ///
+    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is not supported or is currently disabled.
+    ///
     /// # Notes
     ///
     /// This method will do nothing if the option is not "supported" locally via the `CompatibilityTable`.
-    pub fn subnegotiation(&mut self, option: u8, data: Vec<u8>) {
+    pub fn subnegotiation(&mut self, option: u8, data: Vec<u8>) -> Option<Vec<u8>> {
         let opt = self.options.get_option(option);
         if opt.local && opt.local_state {
-            self.send(&bytes::concat(
+            Some(self.send(&bytes::concat(
                 &[255, 250, option],
                 &bytes::concat(&Parser::escape_iac(data), &[255, 240]),
-            ));
+            )))
+        } else {
+            None
         }
     }
     /// Send a subnegotiation for a locally supported option, using a string instead of raw byte values.
@@ -237,35 +215,47 @@ impl Parser {
     ///
     /// `text` - A `&str` representing the text to be sent in the subnegotation. This data will have all IAC (255) byte values escaped.
     ///
+    /// # Returns
+    ///
+    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is not supported or is currently disabled.
+    ///
     /// # Notes
     ///
     /// This method will do nothing if the option is not "supported" locally via the `CompatibilityTable`.
-    pub fn subnegotiation_text(&mut self, option: u8, text: &str) {
-        self.subnegotiation(option, String::from(text).into_bytes());
+    pub fn subnegotiation_text(&mut self, option: u8, text: &str) -> Option<Vec<u8>> {
+        self.subnegotiation(option, String::from(text).into_bytes())
     }
     /// Directly send a buffer to the remote end.
+    ///
+    /// # Arguments
+    ///
+    /// `data` - A u8 slice containing the bytes to send
     ///
     /// # Notes
     ///
     /// The buffer supplied here will NOT be escaped. It is recommended to avoid using this method in favor of the more specialized methods.
-    pub fn send(&mut self, data: &[u8]) {
-        for hook in &mut self.hooks {
-            hook.on_send(data.len(), Vec::from(data));
-        }
+    ///
+    /// # TODO
+    ///
+    /// Remove this method as it is now an alias for `Vec::from(&[u8])`
+    pub fn send(&mut self, data: &[u8]) -> Vec<u8> {
+        Vec::from(data)
     }
     /// Directly send a string, with appended `\r\n`, to the remote end, along with an `IAC (255) GOAHEAD (249)` sequence.
     ///
     /// # Notes
+    ///
     /// The string will have IAC (255) bytes escaped before being sent.
-    pub fn send_text(&mut self, text: &str) {
+    pub fn send_text(&mut self, text: &str) -> Vec<u8> {
         self.send(&bytes::concat(
             &Parser::escape_iac(format!("{}\r\n", text).into_bytes()),
             &[255, 249],
-        ));
+        ))
     }
     /// The internal parser method that takes the current buffer and generates the corresponding events.
-    fn process(&mut self) {
+    fn process(&mut self) -> Vec<events::TelnetEvents> {
         let mut t: Vec<Vec<u8>> = Vec::new();
+        let mut event_list: Vec<events::TelnetEvents> = Vec::new();
         let iter = self.buffer.iter().enumerate();
         let mut offset_next: usize;
         let mut offset_last: usize = 0;
@@ -291,9 +281,7 @@ impl Parser {
                     2 => {
                         if buffer[1] != 240 {
                             // IAC command
-                            for hook in &mut self.hooks {
-                                hook.on_iac(buffer[1]);
-                            }
+                            event_list.push(events::TelnetEvents::build_iac(buffer[1]));
                         }
                     }
                     3 => {
@@ -303,15 +291,21 @@ impl Parser {
                         } else {
                             // Negotiation
                             let mut opt = self.options.get_option(buffer[2]);
+                            let event = events::TelnetNegotiation::new(buffer[1], buffer[2]);
                             match buffer[1] {
                                 251 => {
                                     // WILL
                                     if opt.remote && !opt.remote_state {
                                         opt.remote_state = true;
-                                        self.send(&[255, 253, buffer[2]]);
+                                        event_list.push(events::TelnetEvents::build_send(
+                                            self.send(&[255, 253, buffer[2]]),
+                                        ));
                                         self.options.set_option(buffer[2], opt);
+                                        event_list.push(events::TelnetEvents::Negotiation(event));
                                     } else if !opt.remote {
-                                        self.send(&[255, 254, buffer[2]]);
+                                        event_list.push(events::TelnetEvents::build_send(
+                                            self.send(&[255, 254, buffer[2]]),
+                                        ));
                                     }
                                 }
                                 252 => {
@@ -319,18 +313,26 @@ impl Parser {
                                     if opt.remote_state {
                                         opt.remote_state = false;
                                         self.options.set_option(buffer[2], opt);
-                                        self.send(&[255, 254, buffer[2]]);
+                                        event_list.push(events::TelnetEvents::build_send(
+                                            self.send(&[255, 254, buffer[2]]),
+                                        ));
                                     }
+                                    event_list.push(events::TelnetEvents::Negotiation(event));
                                 }
                                 253 => {
                                     // DO
                                     if opt.local && !opt.local_state {
                                         opt.local_state = true;
                                         opt.remote_state = true;
-                                        self.send(&[255, 251, buffer[2]]);
+                                        event_list.push(events::TelnetEvents::build_send(
+                                            self.send(&[255, 251, buffer[2]]),
+                                        ));
                                         self.options.set_option(buffer[2], opt);
+                                        event_list.push(events::TelnetEvents::Negotiation(event));
                                     } else if !opt.local {
-                                        self.send(&[255, 252, buffer[2]]);
+                                        event_list.push(events::TelnetEvents::build_send(
+                                            self.send(&[255, 252, buffer[2]]),
+                                        ));
                                     }
                                 }
                                 254 => {
@@ -338,13 +340,13 @@ impl Parser {
                                     if opt.local_state {
                                         opt.local_state = false;
                                         self.options.set_option(buffer[2], opt);
-                                        self.send(&[255, 252, buffer[2]]);
+                                        event_list.push(events::TelnetEvents::build_send(
+                                            self.send(&[255, 252, buffer[2]]),
+                                        ));
                                     }
+                                    event_list.push(events::TelnetEvents::Negotiation(event));
                                 }
                                 _ => (),
-                            }
-                            for hook in &mut self.hooks {
-                                hook.on_negotiation(buffer[1], buffer[2]);
                             }
                         }
                     }
@@ -356,13 +358,10 @@ impl Parser {
                             let opt = self.options.get_option(buffer[2]);
                             if opt.local && opt.local_state {
                                 let dbuffer = Vec::from(&buffer[3..len - 2]);
-                                for hook in &mut self.hooks {
-                                    hook.on_subnegotiation(
-                                        buffer[2],
-                                        dbuffer.len(),
-                                        dbuffer.clone(),
-                                    );
-                                }
+                                event_list.push(events::TelnetEvents::build_subnegotiation(
+                                    buffer[2],
+                                    dbuffer.clone(),
+                                ));
                             }
                         } else {
                             // Missing the rest
@@ -372,10 +371,9 @@ impl Parser {
                 }
             } else {
                 // Not an iac sequence, it's data!
-                for hook in &mut self.hooks {
-                    hook.on_data(buffer.len(), buffer.clone())
-                }
+                event_list.push(events::TelnetEvents::build_receive(buffer.clone()));
             }
         }
+        event_list
     }
 }
