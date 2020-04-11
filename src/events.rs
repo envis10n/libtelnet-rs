@@ -1,4 +1,3 @@
-use crate::bytes;
 use crate::Parser;
 
 /// A struct represting a 2 byte IAC sequence.
@@ -50,11 +49,12 @@ impl TelnetSubnegotiation {
   }
   /// Consume the sequence struct and return the bytes.
   pub fn into_bytes(self) -> Vec<u8> {
-    bytes::concat(vec![
+    [
       &[255, 250, self.option],
-      &Parser::escape_iac(self.buffer),
+      &Parser::escape_iac(self.buffer)[..],
       &[255, 240],
-    ])
+    ]
+    .concat()
   }
 }
 

@@ -6,6 +6,12 @@ libtelnet-inspired telnet parser for rust.
 
 [Documentation](https://envis10n.github.io/libtelnet-rs/libtelnet_rs/)
 
+# Warning
+
+The API for this library is likely to have changes made to it over time. **This includes changes to return types, parameter types, and removal/addition/modification of entire methods.**
+
+*Once the library is ready for a full 1.0 release, the API will be "stable" and no major changes will be made to it outside of a major version increment.*
+
 # Usage
 
 Check `src/tests.rs` for an example parser.
@@ -20,4 +26,4 @@ After processing, all telnet events will be returned by `parser.receive()` and c
 
 Anything to be sent back over the socket to the remote end should be sent through the parser as well, to ensure any data will be encoded properly for the telnet protocol.
 
-Data to be sent will be provided either by a `events::TelnetEvents::DataSend` event after processing, or as a `Vec<u8>` as a return from any method used for sending data.
+Data to be sent will be provided either by a `events::TelnetEvents::DataSend` event after processing, or as a return from any method used for sending data.

@@ -11,4 +11,4 @@ documentation = "https://envis10n.github.io/libtelnet-rs/libtelnet_rs/"
 license = "MIT"
 keywords = ["telnet", "libtelnet", "mud"]
 categories = ["network-programming"]
-exclude = ["docs/**"]
+exclude = ["docs/**", ".github/**"]

@@ -1,4 +1,3 @@
-pub mod bytes;
 pub mod compatibility;
 pub mod events;
 pub mod telnet;
@@ -24,11 +23,27 @@ impl Default for Parser {
 }
 
 impl Parser {
-    /// Create a default, empty Parser.
+    /// Create a default, empty Parser with an internal buffer capacity of 128 bytes.
     pub fn new() -> Self {
         Self::default()
     }
+    /// Create an empty parser, setting the initial internal buffer capcity.
+    pub fn with_capacity(size: usize) -> Self {
+        Self {
+            options: CompatibilityTable::new(),
+            buffer: Vec::with_capacity(size),
+        }
+    }
+    /// Create an parser, setting the initial internal buffer capcity and directly supplying a CompatibilityTable.
+    pub fn with_support_and_capacity(size: usize, table: CompatibilityTable) -> Self {
+        Self {
+            options: table,
+            buffer: Vec::with_capacity(size),
+        }
+    }
     /// Create a parser, directly supplying a CompatibilityTable.
+    ///
+    /// Uses the default initial buffer capacity of 128 bytes.
     pub fn with_support(table: CompatibilityTable) -> Self {
         Self {
             options: table,
@@ -48,6 +63,11 @@ impl Parser {
     pub fn receive(&mut self, data: &[u8]) -> Vec<events::TelnetEvents> {
         self.buffer.append(&mut Vec::from(data));
         self.process()
+    }
+    /// Get whether the remote end supports and is using linemode.
+    pub fn linemode_enabled(&mut self) -> bool {
+        let opt = self.options.get_option(telnet::op_option::LINEMODE);
+        opt.remote && opt.remote_state
     }
     /// Escape IAC bytes in data that is to be transmitted and treated as a non-IAC sequence.
     ///
@@ -89,15 +109,17 @@ impl Parser {
     ///
     /// # Returns
     ///
-    /// `Vec<u8>` - The bytes to send to the remote side.
+    /// `events::TelnetEvents::DataSend` - A DataSend event to be processed.
     ///
     /// # Usage
     ///
     /// This and other methods meant for sending data to the remote end will generate a `TelnetEvents::Send(DataEvent)` event.
     ///
     /// These Send events contain a buffer that should be sent directly to the remote end, as it will have already been encoded properly.
-    pub fn negotiate(&mut self, command: u8, option: u8) -> Vec<u8> {
-        vec![255, command, option]
+    pub fn negotiate(&mut self, command: u8, option: u8) -> events::TelnetEvents {
+        events::TelnetEvents::build_send(
+            events::TelnetNegotiation::new(command, option).into_bytes(),
+        )
     }
     /// Indicate to the other side that you are able and wanting to utilize an option.
     ///
@@ -112,7 +134,7 @@ impl Parser {
     /// # Notes
     ///
     /// This method will do nothing if the option is not "supported" locally via the `CompatibilityTable`.
-    pub fn _will(&mut self, option: u8) -> Option<Vec<u8>> {
+    pub fn _will(&mut self, option: u8) -> Option<events::TelnetEvents> {
         let mut opt = self.options.get_option(option);
         if opt.local && !opt.local_state {
             opt.local_state = true;
@@ -130,9 +152,9 @@ impl Parser {
     ///
     /// # Returns
     ///
-    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is already disabled.
+    /// `Option<events::TelnetEvents::DataSend>` - A DataSend event to be processed, or None if the option is already disabled.
     ///
-    pub fn _wont(&mut self, option: u8) -> Option<Vec<u8>> {
+    pub fn _wont(&mut self, option: u8) -> Option<events::TelnetEvents> {
         let mut opt = self.options.get_option(option);
         if opt.local_state {
             opt.local_state = false;
@@ -150,12 +172,12 @@ impl Parser {
     ///
     /// # Returns
     ///
-    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is not supported or already enabled.
+    /// `Option<events::TelnetEvents::DataSend>` - A DataSend event to be processed, or None if the option is not supported or already enabled.
     ///
     /// # Notes
     ///
     /// This method will do nothing if the option is not "supported" remotely via the `CompatibilityTable`.
-    pub fn _do(&mut self, option: u8) -> Option<Vec<u8>> {
+    pub fn _do(&mut self, option: u8) -> Option<events::TelnetEvents> {
         let opt = self.options.get_option(option);
         if opt.remote && !opt.remote_state {
             Some(self.negotiate(253, option))
@@ -171,9 +193,9 @@ impl Parser {
     ///
     /// # Returns
     ///
-    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is already disabled.
+    /// `Option<events::TelnetEvents::DataSend>` - A DataSend event to be processed, or None if the option is already disabled.
     ///
-    pub fn _dont(&mut self, option: u8) -> Option<Vec<u8>> {
+    pub fn _dont(&mut self, option: u8) -> Option<events::TelnetEvents> {
         let opt = self.options.get_option(option);
         if opt.remote_state {
             Some(self.negotiate(254, option))
@@ -191,19 +213,17 @@ impl Parser {
     ///
     /// # Returns
     ///
-    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is not supported or is currently disabled.
+    /// `Option<events::TelnetEvents::DataSend>` - A DataSend event to be processed, or None if the option is not supported or is currently disabled.
     ///
     /// # Notes
     ///
     /// This method will do nothing if the option is not "supported" locally via the `CompatibilityTable`.
-    pub fn subnegotiation(&mut self, option: u8, data: Vec<u8>) -> Option<Vec<u8>> {
+    pub fn subnegotiation(&mut self, option: u8, data: Vec<u8>) -> Option<events::TelnetEvents> {
         let opt = self.options.get_option(option);
         if opt.local && opt.local_state {
-            Some(bytes::concat(vec![
-                &[255, 250, option],
-                &Parser::escape_iac(data),
-                &[255, 240],
-            ]))
+            Some(events::TelnetEvents::build_send(
+                events::TelnetSubnegotiation::new(option, &data).into_bytes(),
+            ))
         } else {
             None
         }
@@ -218,24 +238,25 @@ impl Parser {
     ///
     /// # Returns
     ///
-    /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is not supported or is currently disabled.
+    /// `Option<events::TelnetEvents::DataSend>` - A DataSend event to be processed, or None if the option is not supported or is currently disabled.
     ///
     /// # Notes
     ///
     /// This method will do nothing if the option is not "supported" locally via the `CompatibilityTable`.
-    pub fn subnegotiation_text(&mut self, option: u8, text: &str) -> Option<Vec<u8>> {
+    pub fn subnegotiation_text(&mut self, option: u8, text: &str) -> Option<events::TelnetEvents> {
         self.subnegotiation(option, String::from(text).into_bytes())
     }
     /// Directly send a string, with appended `\r\n`, to the remote end, along with an `IAC (255) GOAHEAD (249)` sequence.
     ///
+    /// # Returns
+    ///
+    /// `events::TelnetEvents::DataSend` - A DataSend event to be processed.
+    ///
     /// # Notes
     ///
     /// The string will have IAC (255) bytes escaped before being sent.
-    pub fn send_text(&mut self, text: &str) -> Vec<u8> {
-        bytes::concat(vec![
-            &Parser::escape_iac(format!("{}\r\n", text).into_bytes()),
-            &[255, 249],
-        ])
+    pub fn send_text(&mut self, text: &str) -> events::TelnetEvents {
+        events::TelnetEvents::build_send(Parser::escape_iac(format!("{}\r\n", text).into_bytes()))
     }
     /// The internal parser method that takes the current buffer and generates the corresponding events.
     fn process(&mut self) -> Vec<events::TelnetEvents> {

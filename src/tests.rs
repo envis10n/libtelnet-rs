@@ -28,10 +28,10 @@ fn handle_events(event_list: Vec<events::TelnetEvents>) {
 fn test_parser() {
   let mut instance: Parser = Parser::new();
   instance.options.support_local(201);
-  if let Some(buffer) = instance._will(201) {
-    handle_events(vec![events::TelnetEvents::build_send(buffer)]);
+  if let Some(ev) = instance._will(201) {
+    handle_events(vec![ev]);
   }
-  handle_events(instance.receive(&bytes::concat(vec![b"Hello, rust!", &[255, 249]])));
+  handle_events(instance.receive(&[b"Hello, rust!", &[255, 249][..]].concat()));
   handle_events(instance.receive(&[255, 253, 201]));
   handle_events(
     instance.receive(&events::TelnetSubnegotiation::new(201, b"Core.Hello {}").into_bytes()),
@@ -44,7 +44,7 @@ fn test_concat() {
   let b: &[u8] = &[1, 2, 3];
   let c: &[u8] = &[4, 5, 6, 7, 8, 9, 0];
   let expected: Vec<u8> = vec![255, 102, 50, 65, 20, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0];
-  let actual: Vec<u8> = bytes::concat(vec![a, b, c]);
+  let actual: Vec<u8> = [a, b, c].concat();
   assert_eq!(expected, actual);
 }
 
