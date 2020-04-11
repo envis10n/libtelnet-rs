@@ -64,6 +64,11 @@ impl Parser {
         self.buffer.append(&mut Vec::from(data));
         self.process()
     }
+    /// Get whether the remote end supports and is using linemode.
+    pub fn linemode_enabled(&mut self) -> bool {
+        let opt = self.options.get_option(telnet::op_option::LINEMODE);
+        opt.remote && opt.remote_state
+    }
     /// Escape IAC bytes in data that is to be transmitted and treated as a non-IAC sequence.
     ///
     /// # Example

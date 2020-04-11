@@ -378,6 +378,11 @@
 <span id="378">378</span>
 <span id="379">379</span>
 <span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">compatibility</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">events</span>;
@@ -444,6 +449,11 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">receive</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">events</span>::<span class="ident">TelnetEvents</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">buffer</span>.<span class="ident">append</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span>::<span class="ident">from</span>(<span class="ident">data</span>));
         <span class="self">self</span>.<span class="ident">process</span>()
+    }
+    <span class="doccomment">/// Get whether the remote end supports and is using linemode.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">linemode_enabled</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="kw">let</span> <span class="ident">opt</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">options</span>.<span class="ident">get_option</span>(<span class="ident">telnet</span>::<span class="ident">op_option</span>::<span class="ident">LINEMODE</span>);
+        <span class="ident">opt</span>.<span class="ident">remote</span> <span class="kw-2">&amp;</span><span class="op">&amp;</span> <span class="ident">opt</span>.<span class="ident">remote_state</span>
     }
     <span class="doccomment">/// Escape IAC bytes in data that is to be transmitted and treated as a non-IAC sequence.</span>
     <span class="doccomment">///</span>
