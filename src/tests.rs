@@ -63,7 +63,7 @@ fn handle_events(event_list: Vec<events::TelnetEvents>) -> CapturedEvents {
                 events.push(Event::SUBNEGOTIATION);
             }
             events::TelnetEvents::DataReceive(buffer) => {
-                println!("Receive: {:?}", buffer);
+                println!("Receive: {}", std::str::from_utf8(buffer.as_slice()).unwrap_or("Bad utf-8 bytes"));
                 events.push(Event::RECV);
             }
             events::TelnetEvents::DataSend(buffer) => {
@@ -84,6 +84,7 @@ fn test_parser() {
   }
   assert_eq!(handle_events(instance.receive(&[b"Hello, rust!", &[255, 249][..]].concat())), events![Event::RECV, Event::IAC]);
   assert_eq!(handle_events(instance.receive(&[255, 253, 201])), events![]);
+  assert_eq!(handle_events(instance.receive(&[&[255, 253, 200][..], b"Some random data"].concat())), events![Event::SEND, Event::RECV]);
   assert_eq!(handle_events(
     instance.receive(&events::TelnetSubnegotiation::new(201, b"Core.Hello {}").into_bytes()),
   ), events![Event::SUBNEGOTIATION]);
