@@ -2,6 +2,8 @@ pub mod compatibility;
 pub mod events;
 pub mod telnet;
 
+use crate::telnet::op_command::*;
+
 #[cfg(test)]
 mod tests;
 
@@ -258,40 +260,83 @@ impl Parser {
     pub fn send_text(&mut self, text: &str) -> events::TelnetEvents {
         events::TelnetEvents::build_send(Parser::escape_iac(format!("{}\r\n", text).into_bytes()))
     }
-    /// The internal parser method that takes the current buffer and generates the corresponding events.
-    fn process(&mut self) -> Vec<events::TelnetEvents> {
-        let mut t: Vec<Vec<u8>> = Vec::with_capacity(4);
-        let mut event_list: Vec<events::TelnetEvents> = Vec::with_capacity(2);
+
+    /// Extract sub-buffers from the current buffer
+    fn extract_event_data(&mut self) -> Vec<Vec<u8>> {
+        enum State {
+            Normal,
+            IAC,
+            Neg,
+            Sub,
+        };
+        let mut iter_state = State::Normal;
+
+        let mut events: Vec<Vec<u8>> = Vec::with_capacity(4);
         let iter = self.buffer.iter().enumerate();
-        let mut offset_next: usize;
-        let mut offset_last: usize = 0;
+        let mut cmd_begin: usize = 0;
+
         for (index, &val) in iter {
-            if val == 255 && self.buffer[index + 1] != 255 {
-                offset_next = index;
-                if offset_next != offset_last {
-                    if self.buffer[offset_last + 1] == 250 && self.buffer[offset_next + 1] == 240 {
-                        offset_next += 2;
+            match iter_state {
+                State::Normal => {
+                    if val == IAC {
+                        if cmd_begin < index {
+                            events.push(Vec::from(&self.buffer[cmd_begin..index]));
+                        }
+                        cmd_begin = index;
+                        iter_state = State::IAC;
                     }
-                    t.push(Vec::from(&self.buffer[offset_last..offset_next]));
-                    offset_last = offset_next;
-                }
+                },
+                State::IAC => {
+                    match val {
+                        IAC => iter_state = State::Normal, // Double IAC, ignore
+                        GA | NOP => {
+                            events.push(Vec::from(&self.buffer[cmd_begin..index+1]));
+                            cmd_begin = index + 1;
+                            iter_state = State::Normal;
+                        },
+                        SB => iter_state = State::Sub,
+                        _ => iter_state = State::Neg, // WILL | WONT | DO | DONT | IS | SEND 
+                    }
+                },
+                State::Neg => {
+                    events.push(Vec::from(&self.buffer[cmd_begin..index+1]));
+                    cmd_begin = index + 1;
+                    iter_state = State::Normal;
+                },
+                State::Sub => {
+                    if val == SE {
+                        events.push(Vec::from(&self.buffer[cmd_begin..index+1]));
+                        cmd_begin = index + 1;
+                    }
+                },
             }
         }
-        if offset_last < self.buffer.len() {
-            t.push(Vec::from(&self.buffer[offset_last..]));
+        if cmd_begin < self.buffer.len() {
+            events.push(Vec::from(&self.buffer[cmd_begin..]));
         }
-        self.buffer = Vec::with_capacity(128);
-        for mut buffer in t {
-            if buffer[0] == 255 {
+
+        // Empty the buffer when we are done
+        self.buffer.clear();
+        events
+    }
+
+    /// The internal parser method that takes the current buffer and generates the corresponding events.
+    fn process(&mut self) -> Vec<events::TelnetEvents> {
+        let mut event_list: Vec<events::TelnetEvents> = Vec::with_capacity(2);
+        for mut buffer in self.extract_event_data() {
+            if buffer.is_empty() {
+                continue
+            }
+            if buffer[0] == IAC {
                 match buffer.len() {
                     2 => {
-                        if buffer[1] != 240 {
+                        if buffer[1] != SE {
                             // IAC command
                             event_list.push(events::TelnetEvents::build_iac(buffer[1]));
                         }
                     }
                     3 => {
-                        if buffer[1] == 250 {
+                        if buffer[1] == SB {
                             // Subnegotiation but not complete yet.
                             self.buffer.append(&mut buffer);
                         } else {
@@ -299,55 +344,51 @@ impl Parser {
                             let mut opt = self.options.get_option(buffer[2]);
                             let event = events::TelnetNegotiation::new(buffer[1], buffer[2]);
                             match buffer[1] {
-                                251 => {
-                                    // WILL
+                                WILL => {
                                     if opt.remote && !opt.remote_state {
                                         opt.remote_state = true;
                                         event_list.push(events::TelnetEvents::build_send(vec![
-                                            255, 253, buffer[2],
+                                            IAC, DO, buffer[2],
                                         ]));
                                         self.options.set_option(buffer[2], opt);
                                         event_list.push(events::TelnetEvents::Negotiation(event));
                                     } else if !opt.remote {
                                         event_list.push(events::TelnetEvents::build_send(vec![
-                                            255, 254, buffer[2],
+                                            IAC, DONT, buffer[2],
                                         ]));
                                     }
                                 }
-                                252 => {
-                                    // WONT
+                                WONT => {
                                     if opt.remote_state {
                                         opt.remote_state = false;
                                         self.options.set_option(buffer[2], opt);
                                         event_list.push(events::TelnetEvents::build_send(vec![
-                                            255, 254, buffer[2],
+                                            IAC, DONT, buffer[2],
                                         ]));
                                     }
                                     event_list.push(events::TelnetEvents::Negotiation(event));
                                 }
-                                253 => {
-                                    // DO
+                                DO => {
                                     if opt.local && !opt.local_state {
                                         opt.local_state = true;
                                         opt.remote_state = true;
                                         event_list.push(events::TelnetEvents::build_send(vec![
-                                            255, 251, buffer[2],
+                                            IAC, WILL, buffer[2],
                                         ]));
                                         self.options.set_option(buffer[2], opt);
                                         event_list.push(events::TelnetEvents::Negotiation(event));
                                     } else if !opt.local {
                                         event_list.push(events::TelnetEvents::build_send(vec![
-                                            255, 252, buffer[2],
+                                            IAC, WONT, buffer[2],
                                         ]));
                                     }
                                 }
-                                254 => {
-                                    // DONT
+                                DONT => {
                                     if opt.local_state {
                                         opt.local_state = false;
                                         self.options.set_option(buffer[2], opt);
                                         event_list.push(events::TelnetEvents::build_send(vec![
-                                            255, 252, buffer[2],
+                                            IAC, WONT, buffer[2],
                                         ]));
                                     }
                                     event_list.push(events::TelnetEvents::Negotiation(event));
@@ -359,7 +400,7 @@ impl Parser {
                     _ => {
                         // Must be subnegotiation?
                         let len: usize = buffer.len();
-                        if buffer[len - 2] == 255 && buffer[len - 1] == 240 {
+                        if buffer[len - 2] == IAC && buffer[len - 1] == SE {
                             // Valid ending
                             let opt = self.options.get_option(buffer[2]);
                             if opt.local && opt.local_state {
