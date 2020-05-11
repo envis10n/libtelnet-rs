@@ -88,6 +88,9 @@ fn test_parser() {
   assert_eq!(handle_events(
     instance.receive(&events::TelnetSubnegotiation::new(201, b"Core.Hello {}").into_bytes()),
   ), events![Event::SUBNEGOTIATION]);
+  assert_eq!(handle_events(
+    instance.receive(&[&events::TelnetSubnegotiation::new(201, b"Core.Hello {}").into_bytes()[..], b"Random text", &[255, 249][..]].concat()),
+  ), events![Event::SUBNEGOTIATION, Event::RECV, Event::IAC]);
 }
 
 #[test]

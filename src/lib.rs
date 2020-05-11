@@ -307,6 +307,7 @@ impl Parser {
                     if val == SE {
                         events.push(Vec::from(&self.buffer[cmd_begin..index+1]));
                         cmd_begin = index + 1;
+                        iter_state = State::Normal;
                     }
                 },
             }
