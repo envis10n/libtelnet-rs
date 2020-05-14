@@ -424,6 +424,7 @@
 <span id="424">424</span>
 <span id="425">425</span>
 <span id="426">426</span>
+<span id="427">427</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">compatibility</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">events</span>;
@@ -734,6 +735,7 @@
                     <span class="kw">if</span> <span class="ident">val</span> <span class="op">=</span><span class="op">=</span> <span class="ident">SE</span> {
                         <span class="ident">events</span>.<span class="ident">push</span>(<span class="ident">Vec</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">buffer</span>[<span class="ident">cmd_begin</span>..<span class="ident">index</span><span class="op">+</span><span class="number">1</span>]));
                         <span class="ident">cmd_begin</span> <span class="op">=</span> <span class="ident">index</span> <span class="op">+</span> <span class="number">1</span>;
+                        <span class="ident">iter_state</span> <span class="op">=</span> <span class="ident">State</span>::<span class="ident">Normal</span>;
                     }
                 },
             }
