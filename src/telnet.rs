@@ -11,6 +11,7 @@ pub mod op_command {
   pub const IS: u8 = 0;
   pub const SEND: u8 = 1;
   pub const GA: u8 = 249;
+  pub const EOR: u8 = 239;
 }
 
 /// Module containing constants for Telnet Option codes.
