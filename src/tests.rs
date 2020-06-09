@@ -1,15 +1,14 @@
 use super::*;
 
-
 /// Test the parser and its general functionality.
 
 #[derive(PartialEq, Debug)]
 enum Event {
-    IAC,
-    NEGOTIATION,
-    SUBNEGOTIATION,
-    RECV,
-    SEND
+  IAC,
+  NEGOTIATION,
+  SUBNEGOTIATION,
+  RECV,
+  SEND,
 }
 
 macro_rules! events {
@@ -27,52 +26,59 @@ macro_rules! events {
 
 #[derive(Default, Debug)]
 struct CapturedEvents {
-    events: Vec<Event>,
+  events: Vec<Event>,
 }
 
 impl CapturedEvents {
-    fn push(&mut self, event: Event) {
-        self.events.push(event);
-    }
+  fn push(&mut self, event: Event) {
+    self.events.push(event);
+  }
 }
 
 impl PartialEq for CapturedEvents {
-    fn eq(&self, other: &Self) -> bool {
-        if self.events.len() == other.events.len() {
-            self.events.iter().zip(other.events.iter()).all(|(val1, val2)| { val1 == val2 })
-        } else {
-            false
-        }
+  fn eq(&self, other: &Self) -> bool {
+    if self.events.len() == other.events.len() {
+      self
+        .events
+        .iter()
+        .zip(other.events.iter())
+        .all(|(val1, val2)| val1 == val2)
+    } else {
+      false
     }
+  }
 }
 
 fn handle_events(event_list: Vec<events::TelnetEvents>) -> CapturedEvents {
-    let mut events = CapturedEvents::default();
-    for event in event_list {
-        match event {
-            events::TelnetEvents::IAC(ev) => {
-                println!("IAC: {}", ev.command);
-                events.push(Event::IAC);
-            }
-            events::TelnetEvents::Negotiation(ev) => {
-                println!("Negotiation: {} {}", ev.command, ev.option);
-                events.push(Event::NEGOTIATION);
-            }
-            events::TelnetEvents::Subnegotiation(ev) => {
-                println!("Subnegotiation: {} {:?}", ev.option, ev.buffer);
-                events.push(Event::SUBNEGOTIATION);
-            }
-            events::TelnetEvents::DataReceive(buffer) => {
-                println!("Receive: {}", std::str::from_utf8(buffer.as_slice()).unwrap_or("Bad utf-8 bytes"));
-                events.push(Event::RECV);
-            }
-            events::TelnetEvents::DataSend(buffer) => {
-                println!("Send: {:?}", buffer);
-                events.push(Event::SEND);
-            }
-        };
-    }
-    events
+  let mut events = CapturedEvents::default();
+  for event in event_list {
+    match event {
+      events::TelnetEvents::IAC(ev) => {
+        println!("IAC: {}", ev.command);
+        events.push(Event::IAC);
+      }
+      events::TelnetEvents::Negotiation(ev) => {
+        println!("Negotiation: {} {}", ev.command, ev.option);
+        events.push(Event::NEGOTIATION);
+      }
+      events::TelnetEvents::Subnegotiation(ev) => {
+        println!("Subnegotiation: {} {:?}", ev.option, ev.buffer);
+        events.push(Event::SUBNEGOTIATION);
+      }
+      events::TelnetEvents::DataReceive(buffer) => {
+        println!(
+          "Receive: {}",
+          std::str::from_utf8(buffer.as_slice()).unwrap_or("Bad utf-8 bytes")
+        );
+        events.push(Event::RECV);
+      }
+      events::TelnetEvents::DataSend(buffer) => {
+        println!("Send: {:?}", buffer);
+        events.push(Event::SEND);
+      }
+    };
+  }
+  events
 }
 
 #[test]
@@ -82,15 +88,34 @@ fn test_parser() {
   if let Some(ev) = instance._will(201) {
     assert_eq!(handle_events(vec![ev]), events![Event::SEND]);
   }
-  assert_eq!(handle_events(instance.receive(&[b"Hello, rust!", &[255, 249][..]].concat())), events![Event::RECV, Event::IAC]);
+  assert_eq!(
+    handle_events(instance.receive(&[b"Hello, rust!", &[255, 249][..]].concat())),
+    events![Event::RECV, Event::IAC]
+  );
   assert_eq!(handle_events(instance.receive(&[255, 253, 201])), events![]);
-  assert_eq!(handle_events(instance.receive(&[&[255, 253, 200][..], b"Some random data"].concat())), events![Event::SEND, Event::RECV]);
-  assert_eq!(handle_events(
-    instance.receive(&events::TelnetSubnegotiation::new(201, b"Core.Hello {}").into_bytes()),
-  ), events![Event::SUBNEGOTIATION]);
-  assert_eq!(handle_events(
-    instance.receive(&[&events::TelnetSubnegotiation::new(201, b"Core.Hello {}").into_bytes()[..], b"Random text", &[255, 249][..]].concat()),
-  ), events![Event::SUBNEGOTIATION, Event::RECV, Event::IAC]);
+  assert_eq!(
+    handle_events(instance.receive(&[&[255, 253, 200][..], b"Some random data"].concat())),
+    events![Event::SEND, Event::RECV]
+  );
+  assert_eq!(
+    handle_events(
+      instance.receive(&events::TelnetSubnegotiation::new(201, b"Core.Hello {}").into_bytes()),
+    ),
+    events![Event::SUBNEGOTIATION]
+  );
+  assert_eq!(
+    handle_events(
+      instance.receive(
+        &[
+          &events::TelnetSubnegotiation::new(201, b"Core.Hello {}").into_bytes()[..],
+          b"Random text",
+          &[255, 249][..]
+        ]
+        .concat()
+      ),
+    ),
+    events![Event::SUBNEGOTIATION, Event::RECV, Event::IAC]
+  );
 }
 
 #[test]
