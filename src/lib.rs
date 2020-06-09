@@ -289,7 +289,7 @@ impl Parser {
                 State::IAC => {
                     match val {
                         IAC => iter_state = State::Normal, // Double IAC, ignore
-                        GA | NOP => {
+                        GA | EOR | NOP => {
                             events.push(Vec::from(&self.buffer[cmd_begin..index+1]));
                             cmd_begin = index + 1;
                             iter_state = State::Normal;
