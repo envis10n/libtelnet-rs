@@ -1,1 +1,1 @@
-initSidebarItems({"constant":[["DO",""],["DONT",""],["GA",""],["IAC",""],["IS",""],["NOP",""],["SB",""],["SE",""],["SEND",""],["WILL",""],["WONT",""]]});
+initSidebarItems({"constant":[["DO",""],["DONT",""],["EOR",""],["GA",""],["IAC",""],["IS",""],["NOP",""],["SB",""],["SE",""],["SEND",""],["WILL",""],["WONT",""]]});
