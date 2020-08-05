@@ -6,12 +6,6 @@ libtelnet-inspired telnet parser for rust.
 
 [Documentation](https://github.envis10n.dev/libtelnet_rs)
 
-# Warning
-
-The API for this library is likely to have changes made to it over time. **This includes changes to return types, parameter types, and removal/addition/modification of entire methods.**
-
-*Once the library is ready for a full 1.0 release, the API will be "stable" and no major changes will be made to it outside of a major version increment.*
-
 # Usage
 
 Check `src/tests.rs` for an example parser.
