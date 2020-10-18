@@ -9,6 +9,7 @@ enum Event {
   SUBNEGOTIATION,
   RECV,
   SEND,
+  DECOM
 }
 
 macro_rules! events {
@@ -75,6 +76,10 @@ fn handle_events(event_list: Vec<events::TelnetEvents>) -> CapturedEvents {
       events::TelnetEvents::DataSend(buffer) => {
         println!("Send: {:?}", buffer);
         events.push(Event::SEND);
+      }
+      events::TelnetEvents::DecompressImmediate(buffer) => {
+        println!("DECOMPRESS: {:?}", buffer);
+        events.push(Event::DECOM);
       }
     };
   }

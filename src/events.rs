@@ -71,6 +71,7 @@ pub enum TelnetEvents {
   DataReceive(Vec<u8>),
   /// Any data to be sent to the remote end.
   DataSend(Vec<u8>),
+  DecompressImmediate(Vec<u8>),
 }
 
 impl TelnetEvents {
