@@ -90,7 +90,11 @@ fn handle_events(event_list: Vec<events::TelnetEvents>) -> CapturedEvents {
 fn test_parser() {
   let mut instance: Parser = Parser::new();
   instance.options.support_local(201);
+  instance.options.support_local(86);
   if let Some(ev) = instance._will(201) {
+    assert_eq!(handle_events(vec![ev]), events![Event::SEND]);
+  }
+  if let Some(ev) = instance._will(86) {
     assert_eq!(handle_events(vec![ev]), events![Event::SEND]);
   }
   assert_eq!(
@@ -120,6 +124,19 @@ fn test_parser() {
       ),
     ),
     events![Event::SUBNEGOTIATION, Event::RECV, Event::IAC]
+  );
+  assert_eq!(
+    handle_events(
+      instance.receive(
+        &[
+          &events::TelnetSubnegotiation::new(86, b" ").into_bytes()[..],
+          b"This is compressed data",
+          &[255, 249][..]
+        ]
+          .concat()
+      ),
+    ),
+    events![Event::SUBNEGOTIATION, Event::DECOM]
   );
   assert_eq!(
     handle_events(instance.receive(&[

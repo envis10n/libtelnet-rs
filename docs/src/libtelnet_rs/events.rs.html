@@ -95,6 +95,8 @@
 <span id="95">95</span>
 <span id="96">96</span>
 <span id="97">97</span>
+<span id="98">98</span>
+<span id="99">99</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">Parser</span>;
 
@@ -169,6 +171,8 @@
   <span class="ident">DataReceive</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>),
   <span class="doccomment">/// Any data to be sent to the remote end.</span>
   <span class="ident">DataSend</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>),
+  <span class="doccomment">/// MCCP2/3 compatibility. MUST DECOMPRESS THIS DATA BEFORE PARSING</span>
+  <span class="ident">DecompressImmediate</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>),
 }
 
 <span class="kw">impl</span> <span class="ident">TelnetEvents</span> {

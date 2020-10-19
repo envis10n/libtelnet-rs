@@ -71,6 +71,7 @@ pub enum TelnetEvents {
   DataReceive(Vec<u8>),
   /// Any data to be sent to the remote end.
   DataSend(Vec<u8>),
+  /// MCCP2/3 compatibility. MUST DECOMPRESS THIS DATA BEFORE PARSING
   DecompressImmediate(Vec<u8>),
 }
 
