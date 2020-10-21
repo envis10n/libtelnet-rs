@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["EventType",""]],"mod":[["compatibility",""],["events",""],["telnet",""]],"struct":[["Parser","A telnet parser that handles the main parts of the protocol."]]});

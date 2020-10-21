@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["TelnetEvents","An enum representing various telnet events."]],"struct":[["TelnetIAC","A struct represting a 2 byte IAC sequence."],["TelnetNegotiation","A struct representing a 3 byte IAC sequence."],["TelnetSubnegotiation","A struct representing an arbitrary length IAC subnegotiation sequence."]]});

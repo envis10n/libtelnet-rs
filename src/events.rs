@@ -1,6 +1,6 @@
 use crate::Parser;
 
-/// A struct represting a 2 byte IAC sequence.
+/// A struct representing a 2 byte IAC sequence.
 #[derive(Clone, Copy)]
 pub struct TelnetIAC {
   pub command: u8,
