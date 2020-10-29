@@ -135,11 +135,15 @@ mod test_compat {
   fn test_reset() {
     let mut table = CompatibilityTable::default();
     let entry = CompatibilityEntry::new(true, true, true, true);
+    assert_eq!(entry.remote, true);
+    assert_eq!(entry.local, true);
     assert_eq!(entry.remote_state, true);
     assert_eq!(entry.local_state, true);
     table.set_option(201, entry);
     table.reset_states();
     let entry = table.get_option(201);
+    assert_eq!(entry.remote, true);
+    assert_eq!(entry.local, true);
     assert_eq!(entry.remote_state, false);
     assert_eq!(entry.local_state, false);
   }
