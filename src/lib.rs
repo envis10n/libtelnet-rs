@@ -295,7 +295,9 @@ impl Parser {
           match val {
             IAC => iter_state = State::Normal, // Double IAC, ignore
             GA | EOR | NOP => {
-              events.push(EventType::IAC(Vec::from(&self.buffer[cmd_begin..index + 1])));
+              events.push(EventType::IAC(Vec::from(
+                &self.buffer[cmd_begin..index + 1],
+              )));
               cmd_begin = index + 1;
               iter_state = State::Normal;
             }
@@ -304,7 +306,9 @@ impl Parser {
           }
         }
         State::Neg => {
-          events.push(EventType::Neg(Vec::from(&self.buffer[cmd_begin..index + 1])));
+          events.push(EventType::Neg(Vec::from(
+            &self.buffer[cmd_begin..index + 1],
+          )));
           cmd_begin = index + 1;
           iter_state = State::Normal;
         }
@@ -313,11 +317,17 @@ impl Parser {
             let opt = &self.buffer[cmd_begin + 2];
             if *opt == telnet::op_option::MCCP2 || *opt == telnet::op_option::MCCP3 {
               // MCCP2/MCCP3 MUST DECOMPRESS DATA AFTER THIS!
-              events.push(EventType::SubNegotiation(Vec::from(&self.buffer[cmd_begin..index + 1]), Some(Vec::from(&self.buffer[index + 1..]))));
+              events.push(EventType::SubNegotiation(
+                Vec::from(&self.buffer[cmd_begin..index + 1]),
+                Some(Vec::from(&self.buffer[index + 1..])),
+              ));
               cmd_begin = self.buffer.len();
               break;
             } else {
-              events.push(EventType::SubNegotiation(Vec::from(&self.buffer[cmd_begin..index + 1]), None));
+              events.push(EventType::SubNegotiation(
+                Vec::from(&self.buffer[cmd_begin..index + 1]),
+                None,
+              ));
               cmd_begin = index + 1;
               iter_state = State::Normal;
             }
@@ -339,9 +349,7 @@ impl Parser {
     let mut event_list: Vec<events::TelnetEvents> = Vec::with_capacity(2);
     for event in self.extract_event_data() {
       match event {
-        EventType::None(mut buffer) |
-        EventType::IAC(mut buffer) |
-        EventType::Neg(mut buffer) => {
+        EventType::None(mut buffer) | EventType::IAC(mut buffer) | EventType::Neg(mut buffer) => {
           if buffer.is_empty() {
             continue;
           }
@@ -369,14 +377,16 @@ impl Parser {
                         self.options.set_option(buffer[2], opt);
                         event_list.push(events::TelnetEvents::Negotiation(event));
                       } else if !opt.remote {
-                        event_list.push(events::TelnetEvents::build_send(vec![IAC, DONT, buffer[2]]));
+                        event_list
+                          .push(events::TelnetEvents::build_send(vec![IAC, DONT, buffer[2]]));
                       }
                     }
                     WONT => {
                       if opt.remote_state {
                         opt.remote_state = false;
                         self.options.set_option(buffer[2], opt);
-                        event_list.push(events::TelnetEvents::build_send(vec![IAC, DONT, buffer[2]]));
+                        event_list
+                          .push(events::TelnetEvents::build_send(vec![IAC, DONT, buffer[2]]));
                       }
                       event_list.push(events::TelnetEvents::Negotiation(event));
                     }
@@ -384,18 +394,21 @@ impl Parser {
                       if opt.local && !opt.local_state {
                         opt.local_state = true;
                         opt.remote_state = true;
-                        event_list.push(events::TelnetEvents::build_send(vec![IAC, WILL, buffer[2]]));
+                        event_list
+                          .push(events::TelnetEvents::build_send(vec![IAC, WILL, buffer[2]]));
                         self.options.set_option(buffer[2], opt);
                         event_list.push(events::TelnetEvents::Negotiation(event));
                       } else if !opt.local {
-                        event_list.push(events::TelnetEvents::build_send(vec![IAC, WONT, buffer[2]]));
+                        event_list
+                          .push(events::TelnetEvents::build_send(vec![IAC, WONT, buffer[2]]));
                       }
                     }
                     DONT => {
                       if opt.local_state {
                         opt.local_state = false;
                         self.options.set_option(buffer[2], opt);
-                        event_list.push(events::TelnetEvents::build_send(vec![IAC, WONT, buffer[2]]));
+                        event_list
+                          .push(events::TelnetEvents::build_send(vec![IAC, WONT, buffer[2]]));
                       }
                       event_list.push(events::TelnetEvents::Negotiation(event));
                     }
@@ -403,13 +416,13 @@ impl Parser {
                   }
                 }
               }
-              _ => ()
+              _ => (),
             }
           } else {
             // Not an iac sequence, it's data!
             event_list.push(events::TelnetEvents::build_receive(buffer.clone()));
           }
-        },
+        }
         EventType::SubNegotiation(mut buffer, remaining) => {
           let len: usize = buffer.len();
           if buffer[len - 2] == IAC && buffer[len - 1] == SE {

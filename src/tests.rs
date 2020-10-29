@@ -9,7 +9,7 @@ enum Event {
   SUBNEGOTIATION,
   RECV,
   SEND,
-  DECOM
+  DECOM,
 }
 
 macro_rules! events {
@@ -133,7 +133,7 @@ fn test_parser() {
           b"This is compressed data",
           &[255, 249][..]
         ]
-          .concat()
+        .concat()
       ),
     ),
     events![Event::SUBNEGOTIATION, Event::DECOM]

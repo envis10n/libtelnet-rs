@@ -115,4 +115,32 @@ impl CompatibilityTable {
   pub fn set_option(&mut self, option: u8, entry: CompatibilityEntry) {
     self.options[option as usize] = entry.clone().into_u8();
   }
+
+  /// Reset all negotiated states
+  pub fn reset_states(&mut self) {
+    for opt in self.options.iter_mut() {
+      let mut entry = CompatibilityEntry::from(opt.clone());
+      entry.local_state = false;
+      entry.remote_state = false;
+      *opt = entry.into_u8();
+    }
+  }
+}
+
+#[cfg(test)]
+mod test_compat {
+  use super::*;
+
+  #[test]
+  fn test_reset() {
+    let mut table = CompatibilityTable::default();
+    let entry = CompatibilityEntry::new(true, true, true, true);
+    assert_eq!(entry.remote_state, true);
+    assert_eq!(entry.local_state, true);
+    table.set_option(201, entry);
+    table.reset_states();
+    let entry = table.get_option(201);
+    assert_eq!(entry.remote_state, false);
+    assert_eq!(entry.local_state, false);
+  }
 }
