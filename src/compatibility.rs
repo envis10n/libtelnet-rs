@@ -119,7 +119,7 @@ impl CompatibilityTable {
   /// Reset all negotiated states
   pub fn reset_states(&mut self) {
     for opt in self.options.iter_mut() {
-      let mut entry = CompatibilityEntry::from(opt.clone());
+      let mut entry = CompatibilityEntry::from(*opt);
       entry.local_state = false;
       entry.remote_state = false;
       *opt = entry.into_u8();

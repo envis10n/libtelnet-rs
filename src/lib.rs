@@ -336,7 +336,13 @@ impl Parser {
       }
     }
     if cmd_begin < self.buffer.len() {
-      events.push(EventType::None(Vec::from(&self.buffer[cmd_begin..])));
+      match iter_state {
+        State::Sub => events.push(EventType::SubNegotiation(
+          Vec::from(&self.buffer[cmd_begin..]),
+          None,
+        )),
+        _ => events.push(EventType::None(Vec::from(&self.buffer[cmd_begin..]))),
+      }
     }
 
     // Empty the buffer when we are done
@@ -349,7 +355,7 @@ impl Parser {
     let mut event_list: Vec<events::TelnetEvents> = Vec::with_capacity(2);
     for event in self.extract_event_data() {
       match event {
-        EventType::None(mut buffer) | EventType::IAC(mut buffer) | EventType::Neg(mut buffer) => {
+        EventType::None(buffer) | EventType::IAC(buffer) | EventType::Neg(buffer) => {
           if buffer.is_empty() {
             continue;
           }
@@ -362,58 +368,48 @@ impl Parser {
                 }
               }
               3 => {
-                if buffer[1] == SB {
-                  // Subnegotiation but not complete yet.
-                  self.buffer.append(&mut buffer);
-                } else {
-                  // Negotiation
-                  let mut opt = self.options.get_option(buffer[2]);
-                  let event = events::TelnetNegotiation::new(buffer[1], buffer[2]);
-                  match buffer[1] {
-                    WILL => {
-                      if opt.remote && !opt.remote_state {
-                        opt.remote_state = true;
-                        event_list.push(events::TelnetEvents::build_send(vec![IAC, DO, buffer[2]]));
-                        self.options.set_option(buffer[2], opt);
-                        event_list.push(events::TelnetEvents::Negotiation(event));
-                      } else if !opt.remote {
-                        event_list
-                          .push(events::TelnetEvents::build_send(vec![IAC, DONT, buffer[2]]));
-                      }
-                    }
-                    WONT => {
-                      if opt.remote_state {
-                        opt.remote_state = false;
-                        self.options.set_option(buffer[2], opt);
-                        event_list
-                          .push(events::TelnetEvents::build_send(vec![IAC, DONT, buffer[2]]));
-                      }
+                // Negotiation
+                let mut opt = self.options.get_option(buffer[2]);
+                let event = events::TelnetNegotiation::new(buffer[1], buffer[2]);
+                match buffer[1] {
+                  WILL => {
+                    if opt.remote && !opt.remote_state {
+                      opt.remote_state = true;
+                      event_list.push(events::TelnetEvents::build_send(vec![IAC, DO, buffer[2]]));
+                      self.options.set_option(buffer[2], opt);
                       event_list.push(events::TelnetEvents::Negotiation(event));
+                    } else if !opt.remote {
+                      event_list.push(events::TelnetEvents::build_send(vec![IAC, DONT, buffer[2]]));
                     }
-                    DO => {
-                      if opt.local && !opt.local_state {
-                        opt.local_state = true;
-                        opt.remote_state = true;
-                        event_list
-                          .push(events::TelnetEvents::build_send(vec![IAC, WILL, buffer[2]]));
-                        self.options.set_option(buffer[2], opt);
-                        event_list.push(events::TelnetEvents::Negotiation(event));
-                      } else if !opt.local {
-                        event_list
-                          .push(events::TelnetEvents::build_send(vec![IAC, WONT, buffer[2]]));
-                      }
-                    }
-                    DONT => {
-                      if opt.local_state {
-                        opt.local_state = false;
-                        self.options.set_option(buffer[2], opt);
-                        event_list
-                          .push(events::TelnetEvents::build_send(vec![IAC, WONT, buffer[2]]));
-                      }
-                      event_list.push(events::TelnetEvents::Negotiation(event));
-                    }
-                    _ => (),
                   }
+                  WONT => {
+                    if opt.remote_state {
+                      opt.remote_state = false;
+                      self.options.set_option(buffer[2], opt);
+                      event_list.push(events::TelnetEvents::build_send(vec![IAC, DONT, buffer[2]]));
+                    }
+                    event_list.push(events::TelnetEvents::Negotiation(event));
+                  }
+                  DO => {
+                    if opt.local && !opt.local_state {
+                      opt.local_state = true;
+                      opt.remote_state = true;
+                      event_list.push(events::TelnetEvents::build_send(vec![IAC, WILL, buffer[2]]));
+                      self.options.set_option(buffer[2], opt);
+                      event_list.push(events::TelnetEvents::Negotiation(event));
+                    } else if !opt.local {
+                      event_list.push(events::TelnetEvents::build_send(vec![IAC, WONT, buffer[2]]));
+                    }
+                  }
+                  DONT => {
+                    if opt.local_state {
+                      opt.local_state = false;
+                      self.options.set_option(buffer[2], opt);
+                      event_list.push(events::TelnetEvents::build_send(vec![IAC, WONT, buffer[2]]));
+                    }
+                    event_list.push(events::TelnetEvents::Negotiation(event));
+                  }
+                  _ => (),
                 }
               }
               _ => (),

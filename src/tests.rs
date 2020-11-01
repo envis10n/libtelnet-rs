@@ -1,3 +1,5 @@
+use crate::telnet::{op_command as cmd, op_option as opt};
+
 use super::*;
 
 /// Test the parser and its general functionality.
@@ -145,6 +147,43 @@ fn test_parser() {
     ])),
     events![Event::RECV, Event::IAC, Event::SEND]
   );
+}
+
+#[test]
+fn test_subneg_separate_receives() {
+  let mut instance: Parser = Parser::with_capacity(10);
+  instance.options.support_local(opt::GMCP);
+  instance._will(opt::GMCP);
+  let mut events = instance.receive(
+    &[
+      &[cmd::IAC, cmd::SB, opt::GMCP][..],
+      b"Otion.Data { some: json, data: in, here: ! }",
+    ]
+    .concat(),
+  );
+  assert_eq!(handle_events(events), events![]);
+
+  events = instance.receive(b"More.Data { some: json, data: in, here: ! }");
+  assert_eq!(handle_events(events), events![]);
+
+  events = instance.receive(
+    &[
+      &[cmd::IAC, cmd::SE][..],
+      &[cmd::IAC, cmd::SB, opt::GMCP][..],
+      b"Otion.Data { some: json, data: in, here: ! }",
+    ]
+    .concat(),
+  );
+  assert_eq!(handle_events(events), events![Event::SUBNEGOTIATION]);
+
+  events = instance.receive(
+    &[
+      b"More.Data { some: json, data: in, here: ! }",
+      &[cmd::IAC, cmd::SE][..],
+    ]
+    .concat(),
+  );
+  assert_eq!(handle_events(events), events![Event::SUBNEGOTIATION]);
 }
 
 #[test]
