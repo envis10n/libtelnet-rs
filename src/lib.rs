@@ -2,6 +2,9 @@ pub mod compatibility;
 pub mod events;
 pub mod telnet;
 
+#[cfg(feature = "futures")]
+pub mod sync;
+
 use crate::telnet::op_command::*;
 
 #[cfg(test)]
