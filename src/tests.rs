@@ -211,3 +211,18 @@ fn test_unescape() {
   let expected: Vec<u8> = vec![255, 250, 201, 255, 205, 202, 255, 240];
   assert_eq!(expected, Parser::unescape_iac(a))
 }
+
+#[test]
+fn sync_parser() {
+  let mut parser = Parser::new();
+  parser.options.support(telnet::op_option::GMCP);
+  let inbound = parser.inbound_events();
+  let outbound = parser.outbound_events();
+  let temp_buf = vec![255, GA];
+  parser.receive(&temp_buf);
+  parser._do(telnet::op_option::GMCP);
+  let ev_a = inbound.recv().unwrap();
+  let ev_b = outbound.recv().unwrap();
+  assert_eq!(ev_a, events::TelnetEvents::IAC(events::TelnetIAC::new(GA)));
+  assert_eq!(ev_b, events::TelnetEvents::DataSend(vec![255, 253, 201]));
+}

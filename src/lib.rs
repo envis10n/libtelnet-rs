@@ -2,8 +2,10 @@ pub mod compatibility;
 pub mod events;
 pub mod telnet;
 
-#[cfg(feature = "futures")]
-pub mod sync;
+use crossbeam::channel::{unbounded, Receiver, Sender};
+type TelnetSender = Sender<events::TelnetEvents>;
+type TelnetReceiver = Receiver<events::TelnetEvents>;
+type TelnetChannel = (TelnetSender, TelnetReceiver);
 
 use crate::telnet::op_command::*;
 
@@ -23,6 +25,8 @@ pub enum EventType {
 pub struct Parser {
   pub options: CompatibilityTable,
   buffer: Vec<u8>,
+  inbound: TelnetChannel,
+  outbound: TelnetChannel,
 }
 
 impl Default for Parser {
@@ -30,6 +34,8 @@ impl Default for Parser {
     Parser {
       options: CompatibilityTable::new(),
       buffer: Vec::with_capacity(128),
+      inbound: unbounded(),
+      outbound: unbounded(),
     }
   }
 }
@@ -44,6 +50,8 @@ impl Parser {
     Self {
       options: CompatibilityTable::new(),
       buffer: Vec::with_capacity(size),
+      inbound: unbounded(),
+      outbound: unbounded(),
     }
   }
   /// Create an parser, setting the initial internal buffer capacity and directly supplying a CompatibilityTable.
@@ -51,6 +59,8 @@ impl Parser {
     Self {
       options: table,
       buffer: Vec::with_capacity(size),
+      inbound: unbounded(),
+      outbound: unbounded(),
     }
   }
   /// Create a parser, directly supplying a CompatibilityTable.
@@ -60,6 +70,8 @@ impl Parser {
     Self {
       options: table,
       buffer: Vec::with_capacity(128),
+      inbound: unbounded(),
+      outbound: unbounded(),
     }
   }
   /// Receive bytes into the internal buffer.
@@ -129,7 +141,9 @@ impl Parser {
   ///
   /// These Send events contain a buffer that should be sent directly to the remote end, as it will have already been encoded properly.
   pub fn negotiate(&mut self, command: u8, option: u8) -> events::TelnetEvents {
-    events::TelnetEvents::build_send(events::TelnetNegotiation::new(command, option).into_bytes())
+    let ev = events::TelnetEvents::build_send(events::TelnetNegotiation::new(command, option).into_bytes());
+    self.outbound.0.send(ev.clone()).unwrap();
+    ev
   }
   /// Indicate to the other side that you are able and wanting to utilize an option.
   ///
@@ -231,9 +245,11 @@ impl Parser {
   pub fn subnegotiation(&mut self, option: u8, data: Vec<u8>) -> Option<events::TelnetEvents> {
     let opt = self.options.get_option(option);
     if opt.local && opt.local_state {
-      Some(events::TelnetEvents::build_send(
+      let ev = events::TelnetEvents::build_send(
         events::TelnetSubnegotiation::new(option, &data).into_bytes(),
-      ))
+      );
+      self.outbound.0.send(ev.clone()).unwrap();
+      Some(ev)
     } else {
       None
     }
@@ -266,7 +282,9 @@ impl Parser {
   ///
   /// The string will have IAC (255) bytes escaped before being sent.
   pub fn send_text(&mut self, text: &str) -> events::TelnetEvents {
-    events::TelnetEvents::build_send(Parser::escape_iac(format!("{}\r\n", text).into_bytes()))
+    let ev = events::TelnetEvents::build_send(Parser::escape_iac(format!("{}\r\n", text).into_bytes()));
+    self.outbound.0.send(ev.clone()).unwrap();
+    ev
   }
 
   /// Extract sub-buffers from the current buffer
@@ -444,6 +462,21 @@ impl Parser {
         }
       }
     }
+    for ev in event_list.clone() {
+      self.inbound.0.send(ev).unwrap();
+    }
     event_list
+  }
+  /// Grab the inbound (Remote) channel receiver.
+  ///
+  /// The events in this channel are ones processed from the remote connection.
+  pub fn inbound_events(&self) -> TelnetReceiver {
+    self.inbound.1.clone()
+  }
+  /// Grab the outbound (Local) channel receiver.
+  ///
+  /// The events in this channel are ones sent locally.
+  pub fn outbound_events(&self) -> TelnetReceiver {
+    self.outbound.1.clone()
   }
 }

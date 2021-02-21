@@ -13,8 +13,5 @@ keywords = ["telnet", "libtelnet", "mud"]
 categories = ["network-programming"]
 exclude = ["docs/**", ".github/**"]
 
-[features]
-futures = ["crossbeam"]
-
 [dependencies]
-crossbeam = { version = "0.8", optional = true }
+crossbeam = { version = "0.8" }
