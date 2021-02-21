@@ -215,6 +215,7 @@ fn test_unescape() {
 #[test]
 fn sync_parser() {
   let mut parser = Parser::new();
+  parser.init_channels();
   parser.options.support(telnet::op_option::GMCP);
   let inbound = parser.inbound_events();
   let outbound = parser.outbound_events();

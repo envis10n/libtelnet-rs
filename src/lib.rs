@@ -25,8 +25,8 @@ pub enum EventType {
 pub struct Parser {
   pub options: CompatibilityTable,
   buffer: Vec<u8>,
-  inbound: TelnetChannel,
-  outbound: TelnetChannel,
+  inbound: Option<TelnetChannel>,
+  outbound: Option<TelnetChannel>,
 }
 
 impl Default for Parser {
@@ -34,8 +34,8 @@ impl Default for Parser {
     Parser {
       options: CompatibilityTable::new(),
       buffer: Vec::with_capacity(128),
-      inbound: unbounded(),
-      outbound: unbounded(),
+      inbound: None,
+      outbound: None,
     }
   }
 }
@@ -50,8 +50,8 @@ impl Parser {
     Self {
       options: CompatibilityTable::new(),
       buffer: Vec::with_capacity(size),
-      inbound: unbounded(),
-      outbound: unbounded(),
+      inbound: None,
+      outbound: None,
     }
   }
   /// Create an parser, setting the initial internal buffer capacity and directly supplying a CompatibilityTable.
@@ -59,8 +59,8 @@ impl Parser {
     Self {
       options: table,
       buffer: Vec::with_capacity(size),
-      inbound: unbounded(),
-      outbound: unbounded(),
+      inbound: None,
+      outbound: None,
     }
   }
   /// Create a parser, directly supplying a CompatibilityTable.
@@ -70,8 +70,8 @@ impl Parser {
     Self {
       options: table,
       buffer: Vec::with_capacity(128),
-      inbound: unbounded(),
-      outbound: unbounded(),
+      inbound: None,
+      outbound: None,
     }
   }
   /// Receive bytes into the internal buffer.
@@ -142,7 +142,12 @@ impl Parser {
   /// These Send events contain a buffer that should be sent directly to the remote end, as it will have already been encoded properly.
   pub fn negotiate(&mut self, command: u8, option: u8) -> events::TelnetEvents {
     let ev = events::TelnetEvents::build_send(events::TelnetNegotiation::new(command, option).into_bytes());
-    self.outbound.0.send(ev.clone()).unwrap();
+    #[cfg(feature = "channels")]
+      {
+        if let Some(outbound) = &self.outbound {
+          outbound.0.send(ev.clone()).unwrap();
+        }
+      }
     ev
   }
   /// Indicate to the other side that you are able and wanting to utilize an option.
@@ -248,7 +253,12 @@ impl Parser {
       let ev = events::TelnetEvents::build_send(
         events::TelnetSubnegotiation::new(option, &data).into_bytes(),
       );
-      self.outbound.0.send(ev.clone()).unwrap();
+      #[cfg(feature = "channels")]
+        {
+          if let Some(outbound) = &self.outbound {
+            outbound.0.send(ev.clone()).unwrap();
+          }
+        }
       Some(ev)
     } else {
       None
@@ -283,7 +293,12 @@ impl Parser {
   /// The string will have IAC (255) bytes escaped before being sent.
   pub fn send_text(&mut self, text: &str) -> events::TelnetEvents {
     let ev = events::TelnetEvents::build_send(Parser::escape_iac(format!("{}\r\n", text).into_bytes()));
-    self.outbound.0.send(ev.clone()).unwrap();
+    #[cfg(feature = "channels")]
+      {
+        if let Some(outbound) = &self.outbound {
+          outbound.0.send(ev.clone()).unwrap();
+        }
+      }
     ev
   }
 
@@ -462,21 +477,33 @@ impl Parser {
         }
       }
     }
-    for ev in event_list.clone() {
-      self.inbound.0.send(ev).unwrap();
-    }
+    #[cfg(feature = "channels")]
+      {
+        for ev in event_list.clone() {
+          if let Some(inbound) = &self.inbound {
+            inbound.0.send(ev).unwrap();
+          }
+        }
+      }
     event_list
   }
   /// Grab the inbound (Remote) channel receiver.
   ///
   /// The events in this channel are ones processed from the remote connection.
+  #[cfg(feature = "channels")]
   pub fn inbound_events(&self) -> TelnetReceiver {
-    self.inbound.1.clone()
+    self.inbound.as_ref().expect("No channel").1.clone()
   }
   /// Grab the outbound (Local) channel receiver.
   ///
   /// The events in this channel are ones sent locally.
+  #[cfg(feature = "channels")]
   pub fn outbound_events(&self) -> TelnetReceiver {
-    self.outbound.1.clone()
+    self.outbound.as_ref().expect("No channel").1.clone()
+  }
+  #[cfg(feature = "channels")]
+  pub fn init_channels(&mut self) {
+    self.inbound = Some(unbounded());
+    self.outbound = Some(unbounded());
   }
 }
