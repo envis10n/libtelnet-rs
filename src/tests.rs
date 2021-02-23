@@ -89,6 +89,7 @@ fn handle_events(event_list: Vec<events::TelnetEvents>) -> CapturedEvents {
 }
 
 #[test]
+#[cfg(not(feature = "channels"))]
 fn test_parser() {
   let mut instance: Parser = Parser::new();
   instance.options.support_local(201);
@@ -150,6 +151,7 @@ fn test_parser() {
 }
 
 #[test]
+#[cfg(not(feature = "channels"))]
 fn test_subneg_separate_receives() {
   let mut instance: Parser = Parser::with_capacity(10);
   instance.options.support_local(opt::GMCP);
@@ -213,9 +215,9 @@ fn test_unescape() {
 }
 
 #[test]
+#[cfg(feature = "channels")]
 fn sync_parser() {
   let mut parser = Parser::new();
-  parser.init_channels();
   parser.options.support(telnet::op_option::GMCP);
   let inbound = parser.inbound_events();
   let outbound = parser.outbound_events();

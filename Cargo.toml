@@ -14,7 +14,7 @@ categories = ["network-programming"]
 exclude = ["docs/**", ".github/**"]
 
 [features]
-channels = []
+channels = ["crossbeam"]
 
 [dependencies]
-crossbeam = { version = "0.8" }
+crossbeam = { version = "0.8", optional = true }

@@ -2,9 +2,13 @@ pub mod compatibility;
 pub mod events;
 pub mod telnet;
 
+#[cfg(feature = "channels")]
 use crossbeam::channel::{unbounded, Receiver, Sender};
+#[cfg(feature = "channels")]
 type TelnetSender = Sender<events::TelnetEvents>;
+#[cfg(feature = "channels")]
 type TelnetReceiver = Receiver<events::TelnetEvents>;
+#[cfg(feature = "channels")]
 type TelnetChannel = (TelnetSender, TelnetReceiver);
 
 use crate::telnet::op_command::*;
@@ -25,17 +29,27 @@ pub enum EventType {
 pub struct Parser {
   pub options: CompatibilityTable,
   buffer: Vec<u8>,
-  inbound: Option<TelnetChannel>,
-  outbound: Option<TelnetChannel>,
+  #[cfg(feature = "channels")]
+  inbound: TelnetChannel,
+  #[cfg(feature = "channels")]
+  outbound: TelnetChannel,
 }
 
 impl Default for Parser {
+  #[cfg(not(feature = "channels"))]
   fn default() -> Parser {
     Parser {
       options: CompatibilityTable::new(),
       buffer: Vec::with_capacity(128),
-      inbound: None,
-      outbound: None,
+    }
+  }
+  #[cfg(feature = "channels")]
+  fn default() -> Parser {
+    Parser {
+      options: CompatibilityTable::new(),
+      buffer: Vec::with_capacity(128),
+      inbound: unbounded(),
+      outbound: unbounded(),
     }
   }
 }
@@ -45,33 +59,57 @@ impl Parser {
   pub fn new() -> Self {
     Self::default()
   }
-  /// Create an empty parser, setting the initial internal buffer capcity.
+  /// Create an empty parser, setting the initial internal buffer capacity.
+  #[cfg(not(feature = "channels"))]
   pub fn with_capacity(size: usize) -> Self {
     Self {
       options: CompatibilityTable::new(),
       buffer: Vec::with_capacity(size),
-      inbound: None,
-      outbound: None,
+    }
+  }
+  #[cfg(feature = "channels")]
+  pub fn with_capacity(size: usize) -> Self {
+    Self {
+      options: CompatibilityTable::new(),
+      buffer: Vec::with_capacity(size),
+      inbound: unbounded(),
+      outbound: unbounded(),
     }
   }
   /// Create an parser, setting the initial internal buffer capacity and directly supplying a CompatibilityTable.
+  #[cfg(not(feature = "channels"))]
   pub fn with_support_and_capacity(size: usize, table: CompatibilityTable) -> Self {
     Self {
       options: table,
       buffer: Vec::with_capacity(size),
-      inbound: None,
-      outbound: None,
+    }
+  }
+  #[cfg(feature = "channels")]
+  pub fn with_support_and_capacity(size: usize, table: CompatibilityTable) -> Self {
+    Self {
+      options: table,
+      buffer: Vec::with_capacity(size),
+      inbound: unbounded(),
+      outbound: unbounded(),
     }
   }
   /// Create a parser, directly supplying a CompatibilityTable.
   ///
   /// Uses the default initial buffer capacity of 128 bytes.
+  #[cfg(not(feature = "channels"))]
   pub fn with_support(table: CompatibilityTable) -> Self {
     Self {
       options: table,
       buffer: Vec::with_capacity(128),
-      inbound: None,
-      outbound: None,
+    }
+  }
+  #[cfg(feature = "channels")]
+  pub fn with_support(table: CompatibilityTable) -> Self {
+    Self {
+      options: table,
+      buffer: Vec::with_capacity(128),
+      inbound: unbounded(),
+      outbound: unbounded(),
     }
   }
   /// Receive bytes into the internal buffer.
@@ -84,9 +122,15 @@ impl Parser {
   ///
   /// `Vec<events::TelnetEvents>` - Any events parsed from the internal buffer with the new bytes.
   ///
+  #[cfg(not(feature = "channels"))]
   pub fn receive(&mut self, data: &[u8]) -> Vec<events::TelnetEvents> {
     self.buffer.append(&mut Vec::from(data));
     self.process()
+  }
+  #[cfg(feature = "channels")]
+  pub fn receive(&mut self, data: &[u8]) {
+    self.buffer.append(&mut Vec::from(data));
+    self.process();
   }
   /// Get whether the remote end supports and is using linemode.
   pub fn linemode_enabled(&mut self) -> bool {
@@ -140,6 +184,7 @@ impl Parser {
   /// This and other methods meant for sending data to the remote end will generate a `TelnetEvents::Send(DataEvent)` event.
   ///
   /// These Send events contain a buffer that should be sent directly to the remote end, as it will have already been encoded properly.
+  #[cfg(not(feature = "channels"))]
   pub fn negotiate(&mut self, command: u8, option: u8) -> events::TelnetEvents {
     let ev = events::TelnetEvents::build_send(events::TelnetNegotiation::new(command, option).into_bytes());
     #[cfg(feature = "channels")]
@@ -149,6 +194,10 @@ impl Parser {
         }
       }
     ev
+  }
+  #[cfg(feature = "channels")]
+  pub fn negotiate(&mut self, command: u8, option: u8) {
+    self.outbound.0.send(events::TelnetEvents::build_send(events::TelnetNegotiation::new(command, option).into_bytes())).unwrap();
   }
   /// Indicate to the other side that you are able and wanting to utilize an option.
   ///
@@ -163,6 +212,7 @@ impl Parser {
   /// # Notes
   ///
   /// This method will do nothing if the option is not "supported" locally via the `CompatibilityTable`.
+  #[cfg(not(feature = "channels"))]
   pub fn _will(&mut self, option: u8) -> Option<events::TelnetEvents> {
     let mut opt = self.options.get_option(option);
     if opt.local && !opt.local_state {
@@ -171,6 +221,15 @@ impl Parser {
       Some(self.negotiate(251, option))
     } else {
       None
+    }
+  }
+  #[cfg(feature = "channels")]
+  pub fn _will(&mut self, option: u8) {
+    let mut opt = self.options.get_option(option);
+    if opt.local && !opt.local_state {
+      opt.local_state = true;
+      self.options.set_option(option, opt);
+      self.negotiate(251, option);
     }
   }
   /// Indicate to the other side that you are not wanting to utilize an option.
@@ -183,6 +242,7 @@ impl Parser {
   ///
   /// `Option<events::TelnetEvents::DataSend>` - A DataSend event to be processed, or None if the option is already disabled.
   ///
+  #[cfg(not(feature = "channels"))]
   pub fn _wont(&mut self, option: u8) -> Option<events::TelnetEvents> {
     let mut opt = self.options.get_option(option);
     if opt.local_state {
@@ -191,6 +251,15 @@ impl Parser {
       Some(self.negotiate(252, option))
     } else {
       None
+    }
+  }
+  #[cfg(feature = "channels")]
+  pub fn _wont(&mut self, option: u8) {
+    let mut opt = self.options.get_option(option);
+    if opt.local_state {
+      opt.local_state = false;
+      self.options.set_option(option, opt);
+      self.negotiate(252, option)
     }
   }
   /// Indicate to the other side that you would like them to utilize an option.
@@ -206,12 +275,20 @@ impl Parser {
   /// # Notes
   ///
   /// This method will do nothing if the option is not "supported" remotely via the `CompatibilityTable`.
+  #[cfg(not(feature = "channels"))]
   pub fn _do(&mut self, option: u8) -> Option<events::TelnetEvents> {
     let opt = self.options.get_option(option);
     if opt.remote && !opt.remote_state {
       Some(self.negotiate(253, option))
     } else {
       None
+    }
+  }
+  #[cfg(feature = "channels")]
+  pub fn _do(&mut self, option: u8) {
+    let opt = self.options.get_option(option);
+    if opt.remote && !opt.remote_state {
+      self.negotiate(253, option);
     }
   }
   /// Indicate to the other side that you would like them to stop utilizing an option.
@@ -224,12 +301,20 @@ impl Parser {
   ///
   /// `Option<events::TelnetEvents::DataSend>` - A DataSend event to be processed, or None if the option is already disabled.
   ///
+  #[cfg(not(feature = "channels"))]
   pub fn _dont(&mut self, option: u8) -> Option<events::TelnetEvents> {
     let opt = self.options.get_option(option);
     if opt.remote_state {
       Some(self.negotiate(254, option))
     } else {
       None
+    }
+  }
+  #[cfg(feature = "channels")]
+  pub fn _dont(&mut self, option: u8) {
+    let opt = self.options.get_option(option);
+    if opt.remote_state {
+      self.negotiate(254, option)
     }
   }
   /// Send a subnegotiation for a locally supported option.
@@ -247,21 +332,22 @@ impl Parser {
   /// # Notes
   ///
   /// This method will do nothing if the option is not "supported" locally via the `CompatibilityTable`.
+  #[cfg(not(feature = "channels"))]
   pub fn subnegotiation(&mut self, option: u8, data: Vec<u8>) -> Option<events::TelnetEvents> {
     let opt = self.options.get_option(option);
     if opt.local && opt.local_state {
-      let ev = events::TelnetEvents::build_send(
+      Some(events::TelnetEvents::build_send(
         events::TelnetSubnegotiation::new(option, &data).into_bytes(),
-      );
-      #[cfg(feature = "channels")]
-        {
-          if let Some(outbound) = &self.outbound {
-            outbound.0.send(ev.clone()).unwrap();
-          }
-        }
-      Some(ev)
+      ))
     } else {
       None
+    }
+  }
+  #[cfg(feature = "channels")]
+  pub fn subnegotiation(&mut self, option: u8, data: Vec<u8>) {
+    let opt = self.options.get_option(option);
+    if opt.local && opt.local_state {
+      self.outbound.0.send(events::TelnetEvents::build_send(events::TelnetSubnegotiation::new(option, &data).into_bytes())).unwrap();
     }
   }
   /// Send a subnegotiation for a locally supported option, using a string instead of raw byte values.
@@ -279,8 +365,13 @@ impl Parser {
   /// # Notes
   ///
   /// This method will do nothing if the option is not "supported" locally via the `CompatibilityTable`.
+  #[cfg(not(feature = "channels"))]
   pub fn subnegotiation_text(&mut self, option: u8, text: &str) -> Option<events::TelnetEvents> {
     self.subnegotiation(option, String::from(text).into_bytes())
+  }
+  #[cfg(feature = "channels")]
+  pub fn subnegotiation_text(&mut self, option: u8, text: &str) {
+    self.subnegotiation(option, String::from(text).into_bytes());
   }
   /// Directly send a string, with appended `\r\n`, to the remote end, along with an `IAC (255) GOAHEAD (249)` sequence.
   ///
@@ -291,17 +382,14 @@ impl Parser {
   /// # Notes
   ///
   /// The string will have IAC (255) bytes escaped before being sent.
+  #[cfg(not(feature = "channels"))]
   pub fn send_text(&mut self, text: &str) -> events::TelnetEvents {
-    let ev = events::TelnetEvents::build_send(Parser::escape_iac(format!("{}\r\n", text).into_bytes()));
-    #[cfg(feature = "channels")]
-      {
-        if let Some(outbound) = &self.outbound {
-          outbound.0.send(ev.clone()).unwrap();
-        }
-      }
-    ev
+    events::TelnetEvents::build_send(Parser::escape_iac(format!("{}\r\n", text).into_bytes()))
   }
-
+  #[cfg(feature = "channels")]
+  pub fn send_text(&mut self, text: &str) {
+    self.outbound.0.send(events::TelnetEvents::build_send(Parser::escape_iac(format!("{}\r\n", text).into_bytes()))).unwrap();
+  }
   /// Extract sub-buffers from the current buffer
   fn extract_event_data(&mut self) -> Vec<EventType> {
     enum State {
@@ -387,6 +475,7 @@ impl Parser {
   }
 
   /// The internal parser method that takes the current buffer and generates the corresponding events.
+  #[cfg(not(feature = "channels"))]
   fn process(&mut self) -> Vec<events::TelnetEvents> {
     let mut event_list: Vec<events::TelnetEvents> = Vec::with_capacity(2);
     for event in self.extract_event_data() {
@@ -477,33 +566,115 @@ impl Parser {
         }
       }
     }
-    #[cfg(feature = "channels")]
-      {
-        for ev in event_list.clone() {
-          if let Some(inbound) = &self.inbound {
-            inbound.0.send(ev).unwrap();
+    event_list
+  }
+  #[cfg(feature = "channels")]
+  fn process(&mut self) {
+    let mut event_list: Vec<events::TelnetEvents> = Vec::with_capacity(2);
+    for event in self.extract_event_data() {
+      match event {
+        EventType::None(buffer) | EventType::IAC(buffer) | EventType::Neg(buffer) => {
+          if buffer.is_empty() {
+            continue;
+          }
+          if buffer[0] == IAC {
+            match buffer.len() {
+              2 => {
+                if buffer[1] != SE {
+                  // IAC command
+                  event_list.push(events::TelnetEvents::build_iac(buffer[1]));
+                }
+              }
+              3 => {
+                // Negotiation
+                let mut opt = self.options.get_option(buffer[2]);
+                let event = events::TelnetNegotiation::new(buffer[1], buffer[2]);
+                match buffer[1] {
+                  WILL => {
+                    if opt.remote && !opt.remote_state {
+                      opt.remote_state = true;
+                      event_list.push(events::TelnetEvents::build_send(vec![IAC, DO, buffer[2]]));
+                      self.options.set_option(buffer[2], opt);
+                      event_list.push(events::TelnetEvents::Negotiation(event));
+                    } else if !opt.remote {
+                      event_list.push(events::TelnetEvents::build_send(vec![IAC, DONT, buffer[2]]));
+                    }
+                  }
+                  WONT => {
+                    if opt.remote_state {
+                      opt.remote_state = false;
+                      self.options.set_option(buffer[2], opt);
+                      event_list.push(events::TelnetEvents::build_send(vec![IAC, DONT, buffer[2]]));
+                    }
+                    event_list.push(events::TelnetEvents::Negotiation(event));
+                  }
+                  DO => {
+                    if opt.local && !opt.local_state {
+                      opt.local_state = true;
+                      opt.remote_state = true;
+                      event_list.push(events::TelnetEvents::build_send(vec![IAC, WILL, buffer[2]]));
+                      self.options.set_option(buffer[2], opt);
+                      event_list.push(events::TelnetEvents::Negotiation(event));
+                    } else if !opt.local {
+                      event_list.push(events::TelnetEvents::build_send(vec![IAC, WONT, buffer[2]]));
+                    }
+                  }
+                  DONT => {
+                    if opt.local_state {
+                      opt.local_state = false;
+                      self.options.set_option(buffer[2], opt);
+                      event_list.push(events::TelnetEvents::build_send(vec![IAC, WONT, buffer[2]]));
+                    }
+                    event_list.push(events::TelnetEvents::Negotiation(event));
+                  }
+                  _ => (),
+                }
+              }
+              _ => (),
+            }
+          } else {
+            // Not an iac sequence, it's data!
+            event_list.push(events::TelnetEvents::build_receive(buffer.clone()));
+          }
+        }
+        EventType::SubNegotiation(mut buffer, remaining) => {
+          let len: usize = buffer.len();
+          if buffer[len - 2] == IAC && buffer[len - 1] == SE {
+            // Valid ending
+            let opt = self.options.get_option(buffer[2]);
+            if opt.local && opt.local_state {
+              let dbuffer = Vec::from(&buffer[3..len - 2]);
+              event_list.push(events::TelnetEvents::build_subnegotiation(
+                buffer[2],
+                dbuffer.clone(),
+              ));
+              if let Some(rbuf) = remaining {
+                event_list.push(events::TelnetEvents::DecompressImmediate(rbuf.clone()));
+              }
+            }
+          } else {
+            // Missing the rest
+            self.buffer.append(&mut buffer);
           }
         }
       }
-    event_list
+    }
+    for ev in event_list.clone() {
+        self.inbound.0.send(ev).unwrap();
+    }
   }
   /// Grab the inbound (Remote) channel receiver.
   ///
   /// The events in this channel are ones processed from the remote connection.
   #[cfg(feature = "channels")]
   pub fn inbound_events(&self) -> TelnetReceiver {
-    self.inbound.as_ref().expect("No channel").1.clone()
+    self.inbound.1.clone()
   }
   /// Grab the outbound (Local) channel receiver.
   ///
   /// The events in this channel are ones sent locally.
   #[cfg(feature = "channels")]
   pub fn outbound_events(&self) -> TelnetReceiver {
-    self.outbound.as_ref().expect("No channel").1.clone()
-  }
-  #[cfg(feature = "channels")]
-  pub fn init_channels(&mut self) {
-    self.inbound = Some(unbounded());
-    self.outbound = Some(unbounded());
+    self.outbound.1.clone()
   }
 }
