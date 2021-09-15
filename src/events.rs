@@ -121,6 +121,19 @@ pub enum TelnetEvents {
   DecompressImmediate(Bytes),
 }
 
+impl Into<Bytes> for TelnetEvents {
+  fn into(self) -> Bytes {
+    match self {
+      TelnetEvents::IAC(iac) => iac.into(),
+      TelnetEvents::Negotiation(neg) => neg.into(),
+      TelnetEvents::Subnegotiation(sub) => sub.into(),
+      TelnetEvents::DataReceive(data) => data,
+      TelnetEvents::DataSend(data) => data,
+      TelnetEvents::DecompressImmediate(data) => data,
+    }
+  }
+}
+
 impl TelnetEvents {
   /// Helper method to generate a TelnetEvents::DataSend.
   pub fn build_send(buffer: Bytes) -> Self {
