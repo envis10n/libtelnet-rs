@@ -7,6 +7,8 @@ libtelnet-inspired telnet parser for rust.
 
 [Documentation](https://docs.rs/libtelnet-rs)
 
+## NOTE: THIS BRANCH USES `bytes::{Bytes, BytesMut}` INSTEAD OF `Vec<u8>`
+
 # Usage
 
 Check `src/tests.rs` for an example parser.

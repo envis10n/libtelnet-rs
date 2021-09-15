@@ -1,4 +1,5 @@
 use crate::telnet::{op_command as cmd, op_option as opt};
+use bytes::Bytes;
 
 use super::*;
 
@@ -71,7 +72,7 @@ fn handle_events(event_list: Vec<events::TelnetEvents>) -> CapturedEvents {
       events::TelnetEvents::DataReceive(buffer) => {
         println!(
           "Receive: {}",
-          std::str::from_utf8(buffer.as_slice()).unwrap_or("Bad utf-8 bytes")
+          std::str::from_utf8(&buffer[..]).unwrap_or("Bad utf-8 bytes")
         );
         events.push(Event::RECV);
       }
@@ -110,7 +111,10 @@ fn test_parser() {
   );
   assert_eq!(
     handle_events(
-      instance.receive(&events::TelnetSubnegotiation::new(201, b"Core.Hello {}").into_bytes()),
+      instance.receive(
+        &events::TelnetSubnegotiation::new(201, Bytes::copy_from_slice(b"Core.Hello {}"))
+          .into_bytes()
+      ),
     ),
     events![Event::SUBNEGOTIATION]
   );
@@ -118,7 +122,8 @@ fn test_parser() {
     handle_events(
       instance.receive(
         &[
-          &events::TelnetSubnegotiation::new(201, b"Core.Hello {}").into_bytes()[..],
+          &events::TelnetSubnegotiation::new(201, Bytes::copy_from_slice(b"Core.Hello {}"))
+            .into_bytes()[..],
           b"Random text",
           &[255, 249][..]
         ]
@@ -131,7 +136,7 @@ fn test_parser() {
     handle_events(
       instance.receive(
         &[
-          &events::TelnetSubnegotiation::new(86, b" ").into_bytes()[..],
+          &events::TelnetSubnegotiation::new(86, Bytes::copy_from_slice(b" ")).into_bytes()[..],
           b"This is compressed data",
           &[255, 249][..]
         ]

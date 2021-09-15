@@ -12,3 +12,6 @@ license = "MIT"
 keywords = ["telnet", "libtelnet", "mud"]
 categories = ["network-programming"]
 exclude = ["docs/**", ".github/**"]
+
+[dependencies]
+bytes = "1.1.0"
