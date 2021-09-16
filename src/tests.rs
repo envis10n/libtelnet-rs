@@ -205,7 +205,7 @@ fn test_concat() {
 /// Test escaping IAC bytes in a buffer.
 #[test]
 fn test_escape() {
-  let a = vbytes!(&[255, 250, 201, 255, 205, 202, 255, 240]);
+  let a = vec![255, 250, 201, 255, 205, 202, 255, 240];
   let expected = vbytes!(&[255, 255, 250, 201, 255, 255, 205, 202, 255, 255, 240]);
   assert_eq!(expected, Parser::escape_iac(a))
 }
@@ -213,7 +213,7 @@ fn test_escape() {
 /// Test unescaping IAC bytes in a buffer.
 #[test]
 fn test_unescape() {
-  let a = vbytes!(&[255, 255, 250, 201, 255, 255, 205, 202, 255, 255, 240]);
+  let a = vec![255, 255, 250, 201, 255, 255, 205, 202, 255, 255, 240];
   let expected = vbytes!(&[255, 250, 201, 255, 205, 202, 255, 240]);
   assert_eq!(expected, Parser::unescape_iac(a))
 }

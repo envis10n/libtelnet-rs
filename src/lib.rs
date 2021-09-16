@@ -93,31 +93,39 @@ impl Parser {
   ///
   /// # Example
   /// `[255, 1, 6, 2]` -> `[255, 255, 1, 6, 2]`
-  pub fn escape_iac(data: Bytes) -> Bytes {
-    let mut t = data.to_vec();
-    let mut c: usize = 0;
-    for (i, byte) in data.iter().enumerate() {
+  pub fn escape_iac<T>(data: T) -> Bytes
+  where
+    Bytes: From<T>,
+  {
+    let data = Bytes::from(data);
+    let mut t = BytesMut::with_capacity(data.len());
+    for byte in data.iter() {
+      t.put_u8(*byte);
       if *byte == 255 {
-        t.insert(i + c, 255);
-        c += 1;
+        t.put_u8(255);
       }
     }
-    vbytes!(&t[..])
+    t.freeze()
   }
   /// Reverse escaped IAC bytes for non-IAC sequences and data.
   ///
   /// # Example
   /// `[255, 255, 1, 6, 2]` -> `[255, 1, 6, 2]`
-  pub fn unescape_iac(data: Bytes) -> Bytes {
-    let mut t = data.to_vec();
-    let mut c: usize = 0;
-    for (index, val) in data.iter().enumerate() {
-      if *val == 255 && data[index + 1] == 255 {
-        t.remove(index - c);
-        c += 1;
+  pub fn unescape_iac<T>(data: T) -> Bytes
+  where
+    Bytes: From<T>,
+  {
+    let data = Bytes::from(data);
+    let mut t = BytesMut::with_capacity(data.len());
+    let mut last = 0u8;
+    for val in data.iter() {
+      if *val == 255 && last == 255 {
+        continue;
       }
+      last = *val;
+      t.put_u8(*val);
     }
-    vbytes!(&t[..])
+    t.freeze()
   }
   /// Negotiate an option.
   ///
@@ -236,11 +244,14 @@ impl Parser {
   /// # Notes
   ///
   /// This method will do nothing if the option is not "supported" locally via the `CompatibilityTable`.
-  pub fn subnegotiation(&mut self, option: u8, data: Bytes) -> Option<events::TelnetEvents> {
+  pub fn subnegotiation<T>(&mut self, option: u8, data: T) -> Option<events::TelnetEvents>
+  where
+    Bytes: From<T>,
+  {
     let opt = self.options.get_option(option);
     if opt.local && opt.local_state {
       Some(events::TelnetEvents::build_send(
-        events::TelnetSubnegotiation::new(option, data).into(),
+        events::TelnetSubnegotiation::new(option, Bytes::from(data)).into(),
       ))
     } else {
       None
@@ -274,9 +285,9 @@ impl Parser {
   ///
   /// The string will have IAC (255) bytes escaped before being sent.
   pub fn send_text(&mut self, text: &str) -> events::TelnetEvents {
-    events::TelnetEvents::build_send(Bytes::copy_from_slice(&Parser::escape_iac(vbytes!(
-      &format!("{}\r\n", text).into_bytes()[..]
-    ))))
+    events::TelnetEvents::build_send(Bytes::copy_from_slice(&Parser::escape_iac(
+      format!("{}\r\n", text).into_bytes(),
+    )))
   }
 
   /// Extract sub-buffers from the current buffer
