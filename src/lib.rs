@@ -93,8 +93,8 @@ impl Parser {
   ///
   /// # Example
   /// `[255, 1, 6, 2]` -> `[255, 255, 1, 6, 2]`
-  pub fn escape_iac(data: Vec<u8>) -> Vec<u8> {
-    let mut t = data.clone();
+  pub fn escape_iac(data: Bytes) -> Bytes {
+    let mut t = data.to_vec();
     let mut c: usize = 0;
     for (i, byte) in data.iter().enumerate() {
       if *byte == 255 {
@@ -102,14 +102,14 @@ impl Parser {
         c += 1;
       }
     }
-    t
+    vbytes!(&t[..])
   }
   /// Reverse escaped IAC bytes for non-IAC sequences and data.
   ///
   /// # Example
   /// `[255, 255, 1, 6, 2]` -> `[255, 1, 6, 2]`
-  pub fn unescape_iac(data: Vec<u8>) -> Vec<u8> {
-    let mut t = data.clone();
+  pub fn unescape_iac(data: Bytes) -> Bytes {
+    let mut t = data.to_vec();
     let mut c: usize = 0;
     for (index, val) in data.iter().enumerate() {
       if *val == 255 && data[index + 1] == 255 {
@@ -117,7 +117,7 @@ impl Parser {
         c += 1;
       }
     }
-    t
+    vbytes!(&t[..])
   }
   /// Negotiate an option.
   ///
@@ -147,7 +147,7 @@ impl Parser {
   ///
   /// # Returns
   ///
-  /// `Option<Vec<u8>>` - The bytes to send to the remote side, or None if the option is not supported or already enabled.
+  /// `Option<events::TelnetEvents::DataSend>` - The DataSend event to be processed, or None if not supported.
   ///
   /// # Notes
   ///
@@ -227,7 +227,7 @@ impl Parser {
   ///
   /// `option` - A `u8` representing the telnet option code for the negotiation.
   ///
-  /// `data` - A `Vec<u8>` containing the data to be sent in the subnegotiation. This data will have all IAC (255) byte values escaped.
+  /// `data` - A `Bytes` containing the data to be sent in the subnegotiation. This data will have all IAC (255) byte values escaped.
   ///
   /// # Returns
   ///
@@ -274,9 +274,9 @@ impl Parser {
   ///
   /// The string will have IAC (255) bytes escaped before being sent.
   pub fn send_text(&mut self, text: &str) -> events::TelnetEvents {
-    events::TelnetEvents::build_send(Bytes::copy_from_slice(&Parser::escape_iac(
-      format!("{}\r\n", text).into_bytes(),
-    )))
+    events::TelnetEvents::build_send(Bytes::copy_from_slice(&Parser::escape_iac(vbytes!(
+      &format!("{}\r\n", text).into_bytes()[..]
+    ))))
   }
 
   /// Extract sub-buffers from the current buffer
@@ -286,7 +286,7 @@ impl Parser {
       IAC,
       Neg,
       Sub,
-    };
+    }
     let mut iter_state = State::Normal;
 
     let mut events: Vec<EventType> = Vec::with_capacity(4);

@@ -77,7 +77,7 @@ pub struct TelnetSubnegotiation {
 impl Into<Bytes> for TelnetSubnegotiation {
   fn into(self) -> Bytes {
     let head: [u8; 3] = [255, 250, self.option];
-    let parsed = &Parser::escape_iac(self.buffer.to_vec())[..];
+    let parsed = &Parser::escape_iac(self.buffer)[..];
     let tail: [u8; 2] = [255, 240];
     let mut buf = BytesMut::with_capacity(head.len() + parsed.len() + tail.len());
     buf.put(&head[..]);

@@ -1,4 +1,5 @@
 use crate::telnet::{op_command as cmd, op_option as opt};
+use crate::vbytes;
 use bytes::Bytes;
 
 use super::*;
@@ -204,15 +205,15 @@ fn test_concat() {
 /// Test escaping IAC bytes in a buffer.
 #[test]
 fn test_escape() {
-  let a: Vec<u8> = vec![255, 250, 201, 255, 205, 202, 255, 240];
-  let expected: Vec<u8> = vec![255, 255, 250, 201, 255, 255, 205, 202, 255, 255, 240];
+  let a = vbytes!(&[255, 250, 201, 255, 205, 202, 255, 240]);
+  let expected = vbytes!(&[255, 255, 250, 201, 255, 255, 205, 202, 255, 255, 240]);
   assert_eq!(expected, Parser::escape_iac(a))
 }
 
 /// Test unescaping IAC bytes in a buffer.
 #[test]
 fn test_unescape() {
-  let a: Vec<u8> = vec![255, 255, 250, 201, 255, 255, 205, 202, 255, 255, 240];
-  let expected: Vec<u8> = vec![255, 250, 201, 255, 205, 202, 255, 240];
+  let a = vbytes!(&[255, 255, 250, 201, 255, 255, 205, 202, 255, 255, 240]);
+  let expected = vbytes!(&[255, 250, 201, 255, 205, 202, 255, 240]);
   assert_eq!(expected, Parser::unescape_iac(a))
 }
