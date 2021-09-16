@@ -2,6 +2,8 @@ pub mod compatibility;
 pub mod events;
 pub mod telnet;
 
+pub use bytes;
+
 use crate::telnet::op_command::*;
 
 #[cfg(test)]
@@ -17,6 +19,8 @@ pub enum EventType {
   Neg(Bytes),
 }
 
+#[macro_export]
+/// Macro for calling `Bytes::copy_from_slice()`
 macro_rules! vbytes {
   ($slice:expr) => {
     Bytes::copy_from_slice($slice)
