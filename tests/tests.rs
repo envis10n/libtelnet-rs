@@ -1,8 +1,8 @@
-use crate::telnet::{op_command as cmd, op_option as opt};
-use crate::vbytes;
 use bytes::Bytes;
+use libtelnet_rs::telnet::{op_command as cmd, op_option as opt};
+use libtelnet_rs::vbytes;
 
-use super::*;
+use libtelnet_rs::*;
 
 /// Test the parser and its general functionality.
 

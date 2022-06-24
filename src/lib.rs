@@ -1,13 +1,18 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std as alloc;
+
 pub mod compatibility;
 pub mod events;
 pub mod telnet;
 
+use alloc::{format, vec::Vec};
 pub use bytes;
 
 use crate::telnet::op_command::*;
-
-#[cfg(test)]
-mod tests;
 
 use bytes::{BufMut, Bytes, BytesMut};
 use compatibility::*;

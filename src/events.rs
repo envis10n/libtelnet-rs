@@ -1,4 +1,5 @@
 use crate::Parser;
+use alloc::vec::Vec;
 use bytes::{BufMut, Bytes, BytesMut};
 
 /// A struct representing a 2 byte IAC sequence.
