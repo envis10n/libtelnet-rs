@@ -338,7 +338,16 @@ impl Parser {
           iter_state = State::Normal;
         }
         State::Sub => {
-          if val == SE {
+          // Every sub negotiation should be of the form:
+          //   IAC SB <option> <optional data> IAC SE
+          // Meaning it must:
+          //  * Be at least 5 bytes long.
+          //  * Start with IAC SB
+          //  * End with IAC SE
+          let long_enough = index - cmd_begin >= 4;
+          let has_prefix = self.buffer[cmd_begin] == IAC && self.buffer[cmd_begin + 1] == SB;
+          let has_suffix = val == SE && self.buffer[index - 1] == IAC;
+          if long_enough && has_prefix && has_suffix {
             let opt = &self.buffer[cmd_begin + 2];
             if *opt == telnet::op_option::MCCP2 || *opt == telnet::op_option::MCCP3 {
               // MCCP2/MCCP3 MUST DECOMPRESS DATA AFTER THIS!
