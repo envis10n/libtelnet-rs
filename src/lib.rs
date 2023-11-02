@@ -461,7 +461,7 @@ impl Parser {
           if buffer[len - 2] == IAC && buffer[len - 1] == SE {
             // Valid ending
             let opt = self.options.get_option(buffer[2]);
-            if opt.local && opt.local_state {
+            if opt.local && opt.local_state && len - 2 >= 3 {
               let dbuffer = vbytes!(&buffer[3..len - 2]);
               event_list.push(events::TelnetEvents::build_subnegotiation(
                 buffer[2], dbuffer,
