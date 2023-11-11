@@ -217,3 +217,11 @@ fn test_unescape() {
   let expected = vbytes!(&[255, 250, 201, 255, 205, 202, 255, 240]);
   assert_eq!(expected, Parser::unescape_iac(a))
 }
+
+#[test]
+fn test_escape_roundtrip_bug() {
+  let data = vec![cmd::IAC, cmd::IAC, 228];
+  let escaped = Parser::escape_iac(data.clone());
+  let unescaped = Parser::unescape_iac(escaped);
+  assert_eq!(unescaped, data);
+}
