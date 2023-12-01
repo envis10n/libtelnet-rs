@@ -3,6 +3,7 @@ use libtelnet_rs::telnet::{op_command as cmd, op_option as opt};
 use libtelnet_rs::vbytes;
 
 use libtelnet_rs::*;
+use libtelnet_rs::compatibility::{CompatibilityEntry, CompatibilityTable};
 
 /// Test the parser and its general functionality.
 
@@ -255,4 +256,21 @@ fn test_unescape() {
   let a = vec![255, 255, 250, 201, 255, 255, 205, 202, 255, 255, 240];
   let expected = vbytes!(&[255, 250, 201, 255, 205, 202, 255, 240]);
   assert_eq!(expected, Parser::unescape_iac(a))
+}
+
+#[test]
+fn test_bad_subneg_dbuffer() {
+  // Configure opt 0xFF (IAC) as local supported, and local state enabled.
+  let entry = CompatibilityEntry::new(true, false, true, false);
+  let opts = CompatibilityTable::from_options(&[(
+    cmd::IAC,
+    entry.into_u8(),
+  )]);
+  // Receive a malformed subnegotiation - this should not panic.
+  Parser::with_support(opts).receive(&[
+    cmd::IAC,
+    cmd::SB,
+    cmd::IAC,
+    cmd::SE,
+  ]);
 }

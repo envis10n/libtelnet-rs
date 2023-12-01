@@ -1,0 +1,27 @@
+[package]
+name = "libtelnet-rs-fuzz"
+version = "0.0.1"
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = { version = "0.4", features = ["arbitrary-derive"] }
+
+[dependencies.libtelnet-rs]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "receive"
+path = "parser/receive.rs"
+test = false
+doc = false
