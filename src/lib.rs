@@ -121,16 +121,27 @@ impl Parser {
     Bytes: From<T>,
   {
     let data = Bytes::from(data);
-    let mut t = BytesMut::with_capacity(data.len());
-    let mut last = 0u8;
-    for val in data.iter() {
-      if *val == 255 && last == 255 {
-        continue;
-      }
-      last = *val;
-      t.put_u8(*val);
+    let mut res = BytesMut::with_capacity(data.len());
+
+    #[derive(Debug, Clone, Copy)]
+    enum States {
+      Normal,
+      Iac,
     }
-    t.freeze()
+    let mut state = States::Normal;
+    let mut out_val;
+    for val in data {
+      (state, out_val) = match (state, val) {
+        (States::Normal, IAC) => (States::Iac, Some(val)),
+        (States::Iac, IAC) => (States::Normal, None),
+        (States::Normal, _) | (States::Iac, _) => (States::Normal, Some(val)),
+      };
+      if let Some(val) = out_val {
+        res.put_u8(val);
+      }
+    }
+
+    res.freeze()
   }
   /// Negotiate an option.
   ///
