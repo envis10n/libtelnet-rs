@@ -3,6 +3,7 @@ use libtelnet_rs::telnet::{op_command as cmd, op_option as opt};
 use libtelnet_rs::vbytes;
 
 use libtelnet_rs::*;
+use libtelnet_rs::compatibility::{CompatibilityEntry, CompatibilityTable};
 
 /// Test the parser and its general functionality.
 
@@ -192,6 +193,45 @@ fn test_subneg_separate_receives() {
   assert_eq!(handle_events(events), events![Event::SUBNEGOTIATION]);
 }
 
+// Test that receiving a subnegotiation with embedded UTF-8 content works correctly,
+// even when the content includes a SE byte.
+#[test]
+fn test_subneg_utf8_content() {
+    use crate::events::TelnetEvents;
+    use cmd::{IAC, SB, SE};
+    use opt::GMCP;
+
+    // Create a parser that will support GMCP.
+    let mut parser = Parser::new();
+    parser.options.support_local(GMCP);
+    parser._will(GMCP);
+
+    // Construct a GMCP message containing a UTF-8 sequence that happens
+    // to include SE (0xF0). This should be permitted as long as the SE isn't
+    // preceeded by IAC (0xFF). For our test case we'll use the content
+    // '👋' (0xF0, 0x9F, 0x91, 0x8B) - where the leading byte is SE.
+    let prefix = &[IAC, SB, GMCP][..];
+    let wave_emoji = &[0xF0, 0x9F, 0x91, 0x8B][..];
+    let suffix = &[IAC, SE][..];
+    let gmcp_msg = [prefix, wave_emoji, suffix].concat();
+
+    // Receive the GMCP message with the parser. This should produce one event.
+    let events = parser.receive(&gmcp_msg);
+    assert_eq!(events.len(), 1, "only expected one event to be parsed");
+
+    // The event should be a Subnegotiation for the GMCP option, with the correct in-tact
+    // buffer contents.
+    if let TelnetEvents::Subnegotiation(sub) = events.get(0).unwrap() {
+        assert_eq!(sub.option, 201, "option should be GMCP");
+        assert_eq!(
+            sub.buffer, wave_emoji,
+            "buffer should be equal to the wave emoji"
+        );
+    } else {
+        panic!("missing expected DataReceive event");
+    }
+}
+
 #[test]
 fn test_concat() {
   let a: &[u8] = &[255, 102, 50, 65, 20];
@@ -224,4 +264,21 @@ fn test_escape_roundtrip_bug() {
   let escaped = Parser::escape_iac(data.clone());
   let unescaped = Parser::unescape_iac(escaped);
   assert_eq!(unescaped, data);
+}
+
+#[test]
+fn test_bad_subneg_dbuffer() {
+  // Configure opt 0xFF (IAC) as local supported, and local state enabled.
+  let entry = CompatibilityEntry::new(true, false, true, false);
+  let opts = CompatibilityTable::from_options(&[(
+    cmd::IAC,
+    entry.into_u8(),
+  )]);
+  // Receive a malformed subnegotiation - this should not panic.
+  Parser::with_support(opts).receive(&[
+    cmd::IAC,
+    cmd::SB,
+    cmd::IAC,
+    cmd::SE,
+  ]);
 }

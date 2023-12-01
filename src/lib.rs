@@ -349,7 +349,16 @@ impl Parser {
           iter_state = State::Normal;
         }
         State::Sub => {
-          if val == SE {
+          // Every sub negotiation should be of the form:
+          //   IAC SB <option> <optional data> IAC SE
+          // Meaning it must:
+          //  * Be at least 5 bytes long.
+          //  * Start with IAC SB
+          //  * End with IAC SE
+          let long_enough = index - cmd_begin >= 4;
+          let has_prefix = self.buffer[cmd_begin] == IAC && self.buffer[cmd_begin + 1] == SB;
+          let has_suffix = val == SE && self.buffer[index - 1] == IAC;
+          if long_enough && has_prefix && has_suffix {
             let opt = &self.buffer[cmd_begin + 2];
             if *opt == telnet::op_option::MCCP2 || *opt == telnet::op_option::MCCP3 {
               // MCCP2/MCCP3 MUST DECOMPRESS DATA AFTER THIS!
@@ -472,7 +481,7 @@ impl Parser {
           if buffer[len - 2] == IAC && buffer[len - 1] == SE {
             // Valid ending
             let opt = self.options.get_option(buffer[2]);
-            if opt.local && opt.local_state {
+            if opt.local && opt.local_state && len - 2 >= 3 {
               let dbuffer = vbytes!(&buffer[3..len - 2]);
               event_list.push(events::TelnetEvents::build_subnegotiation(
                 buffer[2], dbuffer,
